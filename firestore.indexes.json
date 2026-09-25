@@ -1,0 +1,14 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "weeklyMeals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "weekKey", "order": "ASCENDING" },
+        { "fieldPath": "dateMade", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
