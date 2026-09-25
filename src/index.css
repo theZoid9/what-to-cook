@@ -887,6 +887,9 @@ body {
 /* Text stays legible over the moving chopping-board scene. */
 .arena--revealed .reveal-main {
   color: #fffdf7;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
+  letter-spacing: -0.06em;
   -webkit-text-stroke: 1px rgba(55, 24, 13, 0.55);
   text-shadow: 0 3px 0 #542717, 0 12px 34px rgba(23, 9, 4, 0.88);
 }
@@ -896,6 +899,11 @@ body {
   text-shadow: 0 2px 10px rgba(23, 9, 4, 0.9);
 }
 .meal-card h3, .weekly-record h2, .recipe-section h2, .section-heading h1 { color: #fffdf7; }
+.meal-card h3, .weekly-record h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
 .meal-card p, .meal-card__meta, .weekly-record p:not(.eyebrow), .section-heading p:not(.eyebrow) { color: #f2e1cf; }
 .meal-card__meta svg { color: #f1c47a; }
 .text-link { color: #ffda91; }

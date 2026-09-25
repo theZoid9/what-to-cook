@@ -78,24 +78,23 @@ Without Firebase environment variables, the app opens in a clearly marked recipe
 
 ## Firebase Setup
 
-1. Create a Firebase project in the Firebase console.
-2. Add a Web app to the project.
-3. Enable Authentication and enable the Email/Password provider.
-4. Create a Firestore database in production mode.
-5. Create a Storage bucket.
-6. Copy the Web app’s Firebase configuration into a local .env file using .env.example as the template.
-7. Install the Firebase CLI if needed, then log in and choose the correct project:
+1. In the [Firebase console](https://console.firebase.google.com/), create a project and register a **Web app**. In Project settings → Your apps, copy the six values from the web app’s SDK configuration.
+2. Enable **Authentication → Sign-in method → Email/Password**.
+3. Create **Firestore Database** in production mode. Keep the database ID as `(default)`; the seed script writes to that database.
+4. Create **Storage** in production mode. The storage location cannot be changed later, so select a region close to your users.
+5. Copy `.env.example` to `.env` and add the six web-app values. Do not commit `.env`.
+6. From the project folder, log in to Firebase and deploy the included security rules:
 
        npx firebase-tools login
        npx firebase-tools use <your-project-id>
+       npx firebase-tools deploy --only firestore,storage --project <your-project-id>
 
-8. Deploy the included Firestore rules, indexes, and Storage rules:
+7. Seed the meals collection. In Firebase Project settings → Service accounts → Firebase Admin SDK, generate a private-key JSON file. Keep it outside the repository and out of Git. In Git Bash, point `GOOGLE_APPLICATION_CREDENTIALS` at the exact downloaded file, then run the seed:
 
-       npx firebase-tools deploy --only firestore,storage
-
-9. Create a service-account JSON file in Google Cloud Console → IAM & Admin → Service Accounts. Keep it outside the repository. Set GOOGLE_APPLICATION_CREDENTIALS to its absolute path and run:
-
+       export GOOGLE_APPLICATION_CREDENTIALS="/c/Users/<your-windows-user>/Downloads/<service-account-file>.json"
        npm run seed
+
+   The command should finish with `Seeded 20 meals.` Refresh the app afterwards.
 
 The seed command adds 20 starter records to the meals collection: 10 mains and 10 sides. It uses Firebase Admin credentials because normal app users must not be allowed to alter the shared recipe catalogue.
 
@@ -152,18 +151,19 @@ The production files are written to dist.
 ## Render Deployment
 
 1. Push this repository to GitHub.
-2. In Render, create a new Static Site and connect the repository.
-3. Use the build command:
+2. In Render, create **New → Static Site** and connect the repository. Do not create a Web Service; this Vite project has no `npm start` command.
+3. Set the build command to:
 
        npm install && npm run build
 
-4. Set the publish directory to:
+4. Set the publish directory to exactly:
 
        dist
 
-5. Add every VITE_FIREBASE_* value from the local .env file in Render’s environment settings.
-6. Add a Rewrite rule from /* to /index.html. This is essential for refreshing routes such as /week, /login, and /meals/chicken-curry without a 404.
-7. Deploy. The supplied render.yaml captures the same static-site build and rewrite setup for Render Blueprint users.
+5. Open **Environment** and add each `VITE_FIREBASE_*` key from `.env` as an Environment Variable. Copy only each value after `=`. Local `.env` files are not uploaded to Render automatically.
+6. Save with **Save, rebuild, and deploy**. If Firebase still appears unconfigured, use **Manual Deploy → Clear build cache & deploy** so Vite rebuilds with the variables.
+7. Open **Redirects/Rewrites**, add `/*` as Source and `/index.html` as Destination, then select **Rewrite**. This is essential for refreshing routes such as `/week`, `/login`, and `/meals/chicken-curry` without a 404.
+8. Deploy. Render provides an `onrender.com` URL and redeploys automatically when changes are pushed to the selected Git branch. The supplied `render.yaml` captures the same static-site build and rewrite setup for Render Blueprint users.
 
 ## Current V1 Limitations
 
