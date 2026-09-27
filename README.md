@@ -184,7 +184,7 @@ The production files are written to dist.
 
 ## V3 — Household support
 
-- Family or household records
+- Shared household records
 - Shared meal history for multiple users
 
 ## V4 — Shopping list

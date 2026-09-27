@@ -1298,7 +1298,7 @@ body {
   .week-fab { bottom: 1.5rem; left: 1.5rem; }
 }
 
-/* Family vote: one calm countdown, then a clearly centred decision. */
+/* Vote: one calm countdown, then a clearly centred decision. */
 .vote-countdown { margin: 1rem 0 0; color: #374534; font-variant-numeric: tabular-nums; font-size: 1rem; font-weight: 850; letter-spacing: 0.02em; }
 .vote-progress { margin: 1rem 0 0.25rem; color: #252320; font-size: 0.94rem; }
 .vote-progress strong { color: #171614; font-size: 1.16em; }
@@ -1389,6 +1389,19 @@ body {
 .manual-dinner-form label { display: grid; gap: 0.45rem; color: #171614; font-size: 0.82rem; font-weight: 800; }
 .manual-dinner-form input { min-height: 3rem; padding: 0.6rem 0.75rem; border: 1px solid rgba(24, 23, 22, 0.24); border-radius: 0.7rem; color: #171614; background: #fffdf8; font: inherit; }
 .manual-dinner-submit { min-height: 3rem; margin-top: 0.25rem; color: #fffdf8; border-color: #181716; background: #181716; box-shadow: none; font-size: 0.84rem; text-transform: none; }
+.vote-open-error { max-width: 22rem; margin: 0.65rem auto 0; color: #8b3022; font-size: 0.78rem; font-weight: 700; line-height: 1.35; text-align: center; }
+
+/* Keep the complete picker compact on phones once a dinner is showing. */
+@media (max-width: 699px) {
+  .arena--picker { align-content: start; padding: 5.5rem 1rem 4.5rem; }
+  .arena--picker .picker-heading { margin-bottom: 0.8rem; }
+  .arena--picker .picker-grid--double { gap: 0.75rem; }
+  .arena--picker .spin-stage--compact { min-height: min(15.5rem, 32svh); gap: 0.55rem; }
+  .arena--picker .spin-stage--compact .spin-core { width: min(34vw, 11rem); min-height: min(34vw, 11rem); }
+  .arena--picker .picker-shell > .dinner-summary { order: 1; min-height: 0; margin: 0 auto 0.6rem; padding: 0.2rem 0.25rem 0.4rem; }
+  .arena--picker .picker-grid--double { order: 2; }
+  .manual-dinner-trigger { order: 3; margin-top: 0.45rem; }
+}
 
 @media (min-width: 700px) {
   .floating-controls { top: 1.5rem; right: 1.5rem; left: 1.5rem; }

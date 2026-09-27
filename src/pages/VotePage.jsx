@@ -67,10 +67,10 @@ export default function VotePage() {
         ) : !user ? (
           <section className="vote-page__empty"><Vote size={32} aria-hidden="true" /><h1>Log in to vote.</h1><p>Every account gets one Yes or No vote and can change it at any time.</p><div className="vote-page__empty-actions"><Link className="button button--primary" to="/login">Sign in</Link></div></section>
         ) : loading ? <Loading label="Loading tonight’s vote..." /> : !summary.poll ? (
-          <section className="vote-page__empty vote-page__pending"><div className="pending-spinner" aria-hidden="true" /><UsersRound size={32} aria-hidden="true" /><h1>Waiting for the cook to pick dinner.</h1><p>This page updates automatically when a family vote starts.</p></section>
+          <section className="vote-page__empty vote-page__pending"><div className="pending-spinner" aria-hidden="true" /><UsersRound size={32} aria-hidden="true" /><h1>Waiting for the cook to pick dinner.</h1><p>This page updates automatically when a vote starts.</p></section>
         ) : voteEnded ? (
           <section className="vote-page__result" aria-live="polite">
-            <p className="vote-screen__label"><Vote size={16} aria-hidden="true" /> Family vote complete</p>
+            <p className="vote-screen__label"><Vote size={16} aria-hidden="true" /> Vote complete</p>
             <h1>{getVoteOutcome(summary).title}</h1>
             <p className="vote-result-meal">{summary.poll.main.name} <span>with</span> {summary.poll.side.name}</p>
             <div className="vote-totals">
@@ -94,7 +94,7 @@ export default function VotePage() {
               <Button className="vote-choice vote-choice--yes" onClick={() => vote('yes')} disabled={saving}><ThumbsUp size={22} aria-hidden="true" /> Yes</Button>
               <Button className="vote-choice vote-choice--no" onClick={() => vote('no')} disabled={saving}><ThumbsDown size={22} aria-hidden="true" /> No</Button>
             </div>
-            <p className="vote-progress"><strong>{summary.total}</strong> family {summary.total === 1 ? 'vote' : 'votes'} in</p>
+            <p className="vote-progress"><strong>{summary.total}</strong> {summary.total === 1 ? 'vote' : 'votes'} in</p>
             {summary.voters.length > 0 && <p className="vote-voters">Voted: {summary.voters.map((voter) => voter.name).join(' · ')}</p>}
             <div className="vote-totals">
               <div><ThumbsUp size={20} aria-hidden="true" /><strong>{summary.yes}</strong><span>Yes</span></div>

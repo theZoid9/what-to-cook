@@ -35,7 +35,7 @@ export function friendlyFirebaseError(error) {
     'auth/operation-not-allowed': 'Enable Anonymous sign-in in Firebase Authentication, then try again.',
     'auth/admin-restricted-operation': 'Enable Anonymous sign-in in Firebase Authentication, then try again.',
     'auth/network-request-failed': 'We could not reach the service. Check your connection and try again.',
-    'permission-denied': 'You do not have permission to do that.'
+    'permission-denied': 'Voting is blocked by your Firestore rules. Deploy the latest Firestore rules, then try again.'
   };
   return messages[code] || 'Something went wrong. Please try again.';
 }

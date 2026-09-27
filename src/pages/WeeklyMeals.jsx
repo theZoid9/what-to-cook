@@ -90,7 +90,7 @@ export default function WeeklyMeals() {
         <section className="empty-state">
           <ChefHat size={37} aria-hidden="true" />
           <h2>No meals saved yet.</h2>
-          <p>After the family vote, save the dinner here to build your week.</p>
+          <p>After the vote, save the dinner here to build your week.</p>
           <Link className="button button--primary" to="/">Choose a meal</Link>
         </section>
       )}

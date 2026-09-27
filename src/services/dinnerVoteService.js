@@ -42,32 +42,36 @@ function normalisePoll(id, data) {
 
 export async function getOrCreateTonightVote(userId, selection) {
   const currentVoteRef = doc(db, 'dinnerVoteState', 'current');
-  const result = await runTransaction(db, async (transaction) => {
-    // Starting a vote always begins a new family round from the meals on screen.
-    const pollId = `${getTodayKey()}-${Date.now()}`;
-    const endsAt = Timestamp.fromMillis(Date.now() + VOTE_DURATION_SECONDS * 1000);
-    const pollRef = doc(db, 'dinnerVotes', pollId);
+  try {
+    const result = await runTransaction(db, async (transaction) => {
+      // Starting a vote always begins a new round from the meals on screen.
+      const pollId = `${getTodayKey()}-${Date.now()}`;
+      const endsAt = Timestamp.fromMillis(Date.now() + VOTE_DURATION_SECONDS * 1000);
+      const pollRef = doc(db, 'dinnerVotes', pollId);
 
-    const poll = {
-      dateKey: pollId,
-      main: toVoteMeal(selection.main),
-      side: toVoteMeal(selection.side),
-      createdBy: userId,
-      createdAt: serverTimestamp(),
-      endsAt
-    };
-    transaction.set(pollRef, poll);
-    transaction.set(currentVoteRef, {
-      pollId,
-      endsAt,
-      ownerId: userId,
-      ownerLastActiveAt: Timestamp.fromMillis(Date.now()),
-      updatedBy: userId,
-      updatedAt: serverTimestamp()
+      const poll = {
+        dateKey: pollId,
+        main: toVoteMeal(selection.main),
+        side: toVoteMeal(selection.side),
+        createdBy: userId,
+        createdAt: serverTimestamp(),
+        endsAt
+      };
+      transaction.set(pollRef, poll);
+      transaction.set(currentVoteRef, {
+        pollId,
+        endsAt,
+        ownerId: userId,
+        ownerLastActiveAt: Timestamp.fromMillis(Date.now()),
+        updatedBy: userId,
+        updatedAt: serverTimestamp()
+      });
+      return { id: pollId, dateKey: pollId, main: poll.main, side: poll.side, endsAt: endsAt.toMillis() };
     });
-    return { id: pollId, dateKey: pollId, main: poll.main, side: poll.side, endsAt: endsAt.toMillis() };
-  });
-  return result;
+    return result;
+  } catch (error) {
+    throw new Error(friendlyFirebaseError(error));
+  }
 }
 
 export async function keepCurrentVoteAlive(userId) {

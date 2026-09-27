@@ -8,7 +8,7 @@ import VoteCountdown from '../components/VoteCountdown';
 import { getMeals } from '../services/mealService';
 import { sampleMeals } from '../data/sampleMeals';
 import { getCurrentWeekMeals, getMadeMealIds } from '../services/weeklyMealService';
-import { cancelCurrentDinnerVote, castDinnerVote, COOK_HEARTBEAT_MS, getOrCreateTonightVote, keepCurrentVoteAlive, subscribeToDinnerVote, VOTE_DURATION_SECONDS } from '../services/dinnerVoteService';
+import { cancelCurrentDinnerVote, castDinnerVote, COOK_HEARTBEAT_MS, getOrCreateTonightVote, keepCurrentVoteAlive, subscribeToDinnerVote } from '../services/dinnerVoteService';
 import { useAuth } from '../context/AuthContext';
 import { getVoteOutcome } from '../utils/voteUtils';
 
@@ -144,7 +144,7 @@ export default function Home() {
     let isActive = true;
     const reportPresence = () => {
       keepCurrentVoteAlive(user.uid).catch((heartbeatError) => {
-        if (isActive) setError(heartbeatError.message || 'We could not keep the family vote open.');
+        if (isActive) setError(heartbeatError.message || 'We could not keep the vote open.');
       });
     };
     reportPresence();
@@ -275,7 +275,7 @@ export default function Home() {
       setVoteSummary({ yes: 0, no: 0, total: 0, mine: '', voters: [] });
       setPickerStep('pick');
     } catch (cancelError) {
-      setError(cancelError.message || 'We could not cancel the family vote.');
+      setError(cancelError.message || 'We could not cancel the vote.');
     } finally {
       setVoteSaving(false);
     }
@@ -330,7 +330,7 @@ export default function Home() {
       <main className="picker-shell">
         <header className="picker-heading">
           {pickerStep !== 'vote-result' && <p className="arena-mode">{firebaseConfigured ? 'Your dinner picker' : 'Dinner picker preview'}</p>}
-          {pickerStep !== 'vote-result' && <h1>{pickerStep === 'vote' ? 'Family vote' : 'Pick tonight’s dinner.'}</h1>}
+          {pickerStep !== 'vote-result' && <h1>{pickerStep === 'vote' ? 'Vote' : 'Pick tonight’s dinner.'}</h1>}
           {pickerStep !== 'vote-result' && pickerStep !== 'vote' && <p>Spin a main and side. When both are ready, dinner appears below.</p>}
         </header>
 
@@ -363,20 +363,21 @@ export default function Home() {
             <div>
               {user && firebaseConfigured ? (
                 <Button variant="outline" className="vote-open" onClick={openVoting} disabled={voteSaving}>
-                  <Vote size={18} aria-hidden="true" /> {voteSaving ? 'Opening vote…' : `Start ${VOTE_DURATION_SECONDS}-sec family vote`}
+                  <Vote size={18} aria-hidden="true" /> {voteSaving ? 'Starting vote…' : 'Start vote'}
                 </Button>
               ) : user ? (
                 <Button variant="outline" className="vote-open" onClick={openVoting}>Set up voting</Button>
               ) : (
                 <Link className="button button--outline vote-open" to="/login"><Vote size={18} aria-hidden="true" /> Log in to vote</Link>
               )}
+              {error && <p className="vote-open-error" role="alert">{error}</p>}
             </div>
           </section>
         )}
 
         {pickerStep === 'vote' && dinnerReady && (
           <section className="vote-screen" aria-live="polite">
-            <p className="vote-screen__label"><UsersRound size={16} aria-hidden="true" /> Shared dinner vote</p>
+            <p className="vote-screen__label"><UsersRound size={16} aria-hidden="true" /> Dinner vote</p>
             <h2>{mainChoice.name} <span>with</span> {sideChoice.name}</h2>
             <VoteCountdown endsAt={poll?.endsAt} onComplete={() => setPickerStep('vote-result')} />
             <p className="vote-screen__prompt">Would you eat this tonight?</p>
@@ -388,7 +389,7 @@ export default function Home() {
                 <ThumbsDown size={22} aria-hidden="true" /> No
               </Button>
             </div>
-            <p className="vote-progress"><strong>{voteSummary.total}</strong> family {voteSummary.total === 1 ? 'vote' : 'votes'} in</p>
+            <p className="vote-progress"><strong>{voteSummary.total}</strong> {voteSummary.total === 1 ? 'vote' : 'votes'} in</p>
             {voteSummary.voters.length > 0 && <p className="vote-voters">Voted: {voteSummary.voters.map((voter) => voter.name).join(' · ')}</p>}
             <button className="vote-back" type="button" onClick={cancelVote} disabled={voteSaving}>Cancel this vote</button>
           </section>
@@ -396,7 +397,7 @@ export default function Home() {
 
         {pickerStep === 'vote-result' && dinnerReady && (
           <section className="vote-results" aria-live="polite">
-            <p className="vote-screen__label"><Vote size={16} aria-hidden="true" /> Family vote complete</p>
+            <p className="vote-screen__label"><Vote size={16} aria-hidden="true" /> Vote complete</p>
             <h2>{getVoteOutcome(voteSummary).title}</h2>
             <p className="vote-result-meal">{mainChoice.name} <span>with</span> {sideChoice.name}</p>
             <div className="vote-totals">
@@ -412,7 +413,7 @@ export default function Home() {
           </section>
         )}
 
-        {error && <div className="message message--error picker-message" role="alert">{error}</div>}
+        {error && !(pickerStep === 'pick' && dinnerReady) && <div className="message message--error picker-message" role="alert">{error}</div>}
       </main>
 
       <button className="deck-fab" type="button" onClick={() => setDeckOpen(true)} aria-label="Manage main and side lists">
