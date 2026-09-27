@@ -1,8 +1,9 @@
-import { collection, doc, onSnapshot, runTransaction, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
+import { collection, doc, onSnapshot, runTransaction, serverTimestamp, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
 import { db, friendlyFirebaseError } from './firebase';
 
-export const FAMILY_VOTE_TARGET = 3;
 export const VOTE_DURATION_SECONDS = 30;
+export const COOK_HEARTBEAT_MS = 2500;
+export const COOK_PRESENCE_TIMEOUT_MS = 8000;
 export const EMPTY_VOTE_SUMMARY = Object.freeze({ poll: null, yes: 0, no: 0, total: 0, mine: '', voters: [] });
 
 function getTodayKey() {
@@ -59,12 +60,46 @@ export async function getOrCreateTonightVote(userId, selection) {
     transaction.set(currentVoteRef, {
       pollId,
       endsAt,
+      ownerId: userId,
+      ownerLastActiveAt: Timestamp.fromMillis(Date.now()),
       updatedBy: userId,
       updatedAt: serverTimestamp()
     });
     return { id: pollId, dateKey: pollId, main: poll.main, side: poll.side, endsAt: endsAt.toMillis() };
   });
   return result;
+}
+
+export async function keepCurrentVoteAlive(userId) {
+  try {
+    await updateDoc(doc(db, 'dinnerVoteState', 'current'), {
+      ownerId: userId,
+      ownerLastActiveAt: serverTimestamp(),
+      updatedBy: userId,
+      updatedAt: serverTimestamp()
+    });
+  } catch (error) {
+    throw new Error(friendlyFirebaseError(error));
+  }
+}
+
+export async function cancelCurrentDinnerVote(userId, pollId) {
+  const currentVoteRef = doc(db, 'dinnerVoteState', 'current');
+  try {
+    await runTransaction(db, async (transaction) => {
+      const current = await transaction.get(currentVoteRef);
+      if (!current.exists() || current.data().pollId !== pollId || current.data().ownerId !== userId) return;
+      transaction.update(currentVoteRef, {
+        pollId: '',
+        endsAt: Timestamp.fromMillis(0),
+        ownerLastActiveAt: Timestamp.fromMillis(0),
+        updatedBy: userId,
+        updatedAt: serverTimestamp()
+      });
+    });
+  } catch (error) {
+    throw new Error(friendlyFirebaseError(error));
+  }
 }
 
 export async function castDinnerVote(pollId, userId, choice, voterName) {
@@ -130,6 +165,40 @@ export function subscribeToCurrentDinnerVote(userId, onChange, onError) {
   let activePollId = '';
   let receivedCurrent = false;
   let stopPoll = () => {};
+  let ownerTimer = null;
+
+  function stopActivePoll() {
+    stopPoll();
+    stopPoll = () => {};
+    activePollId = '';
+  }
+
+  function clearOwnerTimer() {
+    if (ownerTimer) window.clearTimeout(ownerTimer);
+    ownerTimer = null;
+  }
+
+  function scheduleOwnerTimeout(ownerLastActiveAt, endsAt) {
+    clearOwnerTimer();
+    const lastSeen = toMillis(ownerLastActiveAt);
+    const cookMissingAt = (lastSeen || 0) + COOK_PRESENCE_TIMEOUT_MS;
+    const timeoutAt = Math.min(cookMissingAt, endsAt || 0);
+    const remaining = timeoutAt - Date.now();
+    if (remaining <= 0) {
+      // Completed polls remain visible as a result to people who were already
+      // watching; only a cook leaving before the deadline returns to waiting.
+      if (endsAt && endsAt <= Date.now()) return true;
+      stopActivePoll();
+      onChange(EMPTY_VOTE_SUMMARY);
+      return false;
+    }
+    ownerTimer = window.setTimeout(() => {
+      if (endsAt && endsAt <= Date.now()) return;
+      stopActivePoll();
+      onChange(EMPTY_VOTE_SUMMARY);
+    }, remaining);
+    return true;
+  }
 
   const stopCurrent = onSnapshot(
     doc(db, 'dinnerVoteState', 'current'),
@@ -141,17 +210,22 @@ export function subscribeToCurrentDinnerVote(userId, onChange, onError) {
       // The pointer is kept so the cook can retain their completed result, but
       // it is no longer an active vote for anyone opening the page afterward.
       if (!nextPollId || !isStillOpen(currentEndsAt)) {
-        stopPoll();
-        activePollId = '';
+        clearOwnerTimer();
+        stopActivePoll();
         receivedCurrent = true;
         onChange(EMPTY_VOTE_SUMMARY);
         return;
       }
 
-      if (receivedCurrent && nextPollId === activePollId) return;
+      if (receivedCurrent && nextPollId === activePollId) {
+        scheduleOwnerTimeout(currentData.ownerLastActiveAt, currentEndsAt);
+        return;
+      }
       receivedCurrent = true;
-      stopPoll();
+      clearOwnerTimer();
+      stopActivePoll();
       activePollId = nextPollId || '';
+      if (!scheduleOwnerTimeout(currentData.ownerLastActiveAt, currentEndsAt)) return;
       stopPoll = subscribeToDinnerVote(activePollId, userId, onChange, onError);
     },
     onError
@@ -159,6 +233,7 @@ export function subscribeToCurrentDinnerVote(userId, onChange, onError) {
 
   return () => {
     stopCurrent();
-    stopPoll();
+    clearOwnerTimer();
+    stopActivePoll();
   };
 }

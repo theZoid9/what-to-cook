@@ -8,7 +8,7 @@ import VoteCountdown from '../components/VoteCountdown';
 import { getMeals } from '../services/mealService';
 import { sampleMeals } from '../data/sampleMeals';
 import { getCurrentWeekMeals, getMadeMealIds } from '../services/weeklyMealService';
-import { castDinnerVote, FAMILY_VOTE_TARGET, getOrCreateTonightVote, subscribeToDinnerVote, VOTE_DURATION_SECONDS } from '../services/dinnerVoteService';
+import { cancelCurrentDinnerVote, castDinnerVote, COOK_HEARTBEAT_MS, getOrCreateTonightVote, keepCurrentVoteAlive, subscribeToDinnerVote, VOTE_DURATION_SECONDS } from '../services/dinnerVoteService';
 import { useAuth } from '../context/AuthContext';
 import { getVoteOutcome } from '../utils/voteUtils';
 
@@ -134,6 +134,23 @@ export default function Home() {
     );
   }, [user, firebaseConfigured, poll?.id]);
 
+  useEffect(() => {
+    if (pickerStep !== 'vote' || !poll?.id || !user || !firebaseConfigured) return undefined;
+
+    let isActive = true;
+    const reportPresence = () => {
+      keepCurrentVoteAlive(user.uid).catch((heartbeatError) => {
+        if (isActive) setError(heartbeatError.message || 'We could not keep the family vote open.');
+      });
+    };
+    reportPresence();
+    const heartbeat = window.setInterval(reportPresence, COOK_HEARTBEAT_MS);
+    return () => {
+      isActive = false;
+      window.clearInterval(heartbeat);
+    };
+  }, [pickerStep, poll?.id, user?.uid, firebaseConfigured]);
+
   const deckMeals = useMemo(() => {
     const hidden = new Set(hiddenMealIds);
     const byId = new Map();
@@ -215,6 +232,25 @@ export default function Home() {
       setVoteSummary((current) => ({ ...current, mine: choice }));
     } catch (voteError) {
       setError(voteError.message || 'We could not save your vote.');
+    } finally {
+      setVoteSaving(false);
+    }
+  }
+
+  async function cancelVote() {
+    if (!user || !poll?.id) {
+      setPickerStep('pick');
+      return;
+    }
+    setVoteSaving(true);
+    setError('');
+    try {
+      await cancelCurrentDinnerVote(user.uid, poll.id);
+      setPoll(null);
+      setVoteSummary({ yes: 0, no: 0, total: 0, mine: '', voters: [] });
+      setPickerStep('pick');
+    } catch (cancelError) {
+      setError(cancelError.message || 'We could not cancel the family vote.');
     } finally {
       setVoteSaving(false);
     }
@@ -316,9 +352,9 @@ export default function Home() {
                 <ThumbsDown size={22} aria-hidden="true" /> No
               </Button>
             </div>
-            <p className="vote-progress"><strong>{voteSummary.total}</strong> of {FAMILY_VOTE_TARGET} family votes in</p>
+            <p className="vote-progress"><strong>{voteSummary.total}</strong> family {voteSummary.total === 1 ? 'vote' : 'votes'} in</p>
             {voteSummary.voters.length > 0 && <p className="vote-voters">Voted: {voteSummary.voters.map((voter) => voter.name).join(' · ')}</p>}
-            <button className="vote-back" type="button" onClick={() => setPickerStep('pick')}>Back to the meal</button>
+            <button className="vote-back" type="button" onClick={cancelVote} disabled={voteSaving}>Cancel this vote</button>
           </section>
         )}
 
