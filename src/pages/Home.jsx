@@ -1,12 +1,15 @@
-import { BookOpen, ChefHat, ListPlus, Plus, RotateCw, Sparkles, Trash2, UtensilsCrossed, X } from 'lucide-react';
+import { ListPlus, Plus, RotateCw, Sparkles, ThumbsDown, ThumbsUp, Trash2, UsersRound, Vote, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import React, { useEffect, useMemo, useState } from 'react';
 import Button from '../components/Button';
 import Loading from '../components/Loading';
 import Atmosphere from '../components/Atmosphere';
+import VoteCountdown from '../components/VoteCountdown';
 import { getMeals } from '../services/mealService';
 import { getCurrentWeekMeals, getMadeMealIds } from '../services/weeklyMealService';
+import { castDinnerVote, FAMILY_VOTE_TARGET, getOrCreateTonightVote, subscribeToDinnerVote, VOTE_DURATION_SECONDS } from '../services/dinnerVoteService';
 import { useAuth } from '../context/AuthContext';
+import { getVoteOutcome } from '../utils/voteUtils';
 
 const CUSTOM_DECK_KEY = 'what-to-cook.custom-meals.v1';
 const HIDDEN_DECK_KEY = 'what-to-cook.hidden-meal-ids.v1';
@@ -51,26 +54,17 @@ function createCustomMeal(name, type) {
   };
 }
 
-function PickerCard({ type, meal, spinning, disabled, availableCount, onSpin }) {
+function PickerStage({ type, mainChoice, spinning, disabled, onSpin, onBack }) {
   const isMain = type === 'main';
-  const label = isMain ? 'Main dish' : 'Side dish';
-  const prompt = isMain ? 'Choose the star of dinner' : 'Choose something to serve with it';
 
   return (
-    <section className={'picker-card picker-card--' + type} aria-label={label}>
-      <div className="picker-card__topline">
-        {isMain ? <ChefHat size={17} aria-hidden="true" /> : <UtensilsCrossed size={17} aria-hidden="true" />}
-        <span>{label}</span>
-        <small>{availableCount} available</small>
-      </div>
-      <div className="picker-card__choice" aria-live="polite">
-        <p>{meal ? 'Picked for tonight' : prompt}</p>
-        <h2>{meal?.name || '—'}</h2>
-      </div>
-      <Button className="picker-spin" onClick={onSpin} disabled={disabled}>
-        <RotateCw size={19} className={spinning ? 'is-spinning' : ''} aria-hidden="true" />
-        <span>{spinning ? 'Choosing' : meal ? `Spin ${isMain ? 'main' : 'side'} again` : `Spin ${isMain ? 'main' : 'side'}`}</span>
-      </Button>
+    <section className={'spin-stage spin-stage--' + type + (spinning ? ' spin-stage--active' : '')} aria-label={isMain ? 'Choose a main dish' : 'Choose a side dish'}>
+      {!isMain && <p className="selected-main-name">{mainChoice?.name}</p>}
+      <button className="spin-core" type="button" onClick={onSpin} disabled={disabled} aria-label={spinning ? 'Choosing a meal' : `Spin for a ${isMain ? 'main' : 'side'} dish`}>
+        <strong>{spinning ? 'Mixing…' : 'SPIN'}</strong>
+        <RotateCw size={30} className={spinning ? 'is-spinning' : ''} aria-hidden="true" />
+      </button>
+      {!isMain && <button className="picker-back" type="button" onClick={onBack}>Pick a different main</button>}
     </section>
   );
 }
@@ -83,13 +77,17 @@ export default function Home() {
   const [hiddenMealIds, setHiddenMealIds] = useState(() => getStoredList(HIDDEN_DECK_KEY));
   const [mainChoice, setMainChoice] = useState(null);
   const [sideChoice, setSideChoice] = useState(null);
+  const [pickerStep, setPickerStep] = useState('main');
   const [spinningType, setSpinningType] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deckOpen, setDeckOpen] = useState(false);
   const [draftName, setDraftName] = useState('');
-  const [draftType, setDraftType] = useState('main');
+  const [deckTab, setDeckTab] = useState('main');
   const [deckError, setDeckError] = useState('');
+  const [poll, setPoll] = useState(null);
+  const [voteSummary, setVoteSummary] = useState({ yes: 0, no: 0, total: 0, mine: '', voters: [] });
+  const [voteSaving, setVoteSaving] = useState(false);
 
   useEffect(() => {
     try {
@@ -122,6 +120,20 @@ export default function Home() {
     loadHomeData();
   }, [user]);
 
+  useEffect(() => {
+    if (!user || !firebaseConfigured || !poll?.id) return undefined;
+    return subscribeToDinnerVote(
+      poll.id,
+      user.uid,
+      (nextSummary) => {
+        setPoll(nextSummary.poll);
+        setVoteSummary(nextSummary);
+        if (nextSummary.poll?.endsAt && nextSummary.poll.endsAt <= Date.now()) setPickerStep('vote-result');
+      },
+      (snapshotError) => setError(snapshotError.message || 'We could not load the votes right now.')
+    );
+  }, [user, firebaseConfigured, poll?.id]);
+
   const deckMeals = useMemo(() => {
     const hidden = new Set(hiddenMealIds);
     const byId = new Map();
@@ -135,7 +147,10 @@ export default function Home() {
   );
   const mains = useMemo(() => availableMeals.filter((meal) => meal.type === 'main'), [availableMeals]);
   const sides = useMemo(() => availableMeals.filter((meal) => meal.type === 'side'), [availableMeals]);
-  const dinnerReady = mainChoice && sideChoice;
+  const deckMains = useMemo(() => deckMeals.filter((meal) => meal.type === 'main'), [deckMeals]);
+  const deckSides = useMemo(() => deckMeals.filter((meal) => meal.type === 'side'), [deckMeals]);
+  const visibleDeckMeals = deckTab === 'main' ? deckMains : deckSides;
+  const dinnerReady = ['result', 'vote', 'vote-result'].includes(pickerStep) && mainChoice && sideChoice;
 
   function spin(type) {
     const candidates = type === 'main' ? mains : sides;
@@ -154,10 +169,71 @@ export default function Home() {
     setSpinningType(type);
     window.setTimeout(() => {
       const picked = choose(candidates);
-      if (type === 'main') setMainChoice(picked);
-      else setSideChoice(picked);
+      if (type === 'main') {
+        setMainChoice(picked);
+        setSideChoice(null);
+        setPickerStep('side');
+      } else {
+        setSideChoice(picked);
+        setPickerStep('result');
+      }
       setSpinningType('');
     }, 950);
+  }
+
+  function pickAnotherMain() {
+    setMainChoice(null);
+    setSideChoice(null);
+    setPickerStep('main');
+  }
+
+  function startAgain() {
+    setMainChoice(null);
+    setSideChoice(null);
+    setPickerStep('main');
+    setPoll(null);
+    setVoteSummary({ yes: 0, no: 0, total: 0, mine: '', voters: [] });
+    setError('');
+  }
+
+  async function openVoting() {
+    if (!firebaseConfigured) {
+      setError('Voting needs Firebase to be configured first.');
+      return;
+    }
+    if (!user) {
+      setError('Log in first so each person can have one vote.');
+      return;
+    }
+    if (!mainChoice || !sideChoice) return;
+
+    setVoteSaving(true);
+    setError('');
+    try {
+      const currentPoll = await getOrCreateTonightVote(user.uid, { main: mainChoice, side: sideChoice });
+      setPoll(currentPoll);
+      setMainChoice(currentPoll.main);
+      setSideChoice(currentPoll.side);
+      setPickerStep(currentPoll.endsAt && currentPoll.endsAt <= Date.now() ? 'vote-result' : 'vote');
+    } catch (voteError) {
+      setError(voteError.message || 'We could not open tonight’s vote.');
+    } finally {
+      setVoteSaving(false);
+    }
+  }
+
+  async function submitVote(choice) {
+    if (!user || !poll) return;
+    setVoteSaving(true);
+    setError('');
+    try {
+      await castDinnerVote(poll.id, user.uid, choice, user.displayName);
+      setVoteSummary((current) => ({ ...current, mine: choice }));
+    } catch (voteError) {
+      setError(voteError.message || 'We could not save your vote.');
+    } finally {
+      setVoteSaving(false);
+    }
   }
 
   function addMeal(event) {
@@ -167,11 +243,11 @@ export default function Home() {
       setDeckError('Give the meal a name first.');
       return;
     }
-    if (deckMeals.some((meal) => meal.type === draftType && meal.name.toLowerCase() === name.toLowerCase())) {
-      setDeckError(`“${name}” is already in your ${draftType} list.`);
+    if (deckMeals.some((meal) => meal.type === deckTab && meal.name.toLowerCase() === name.toLowerCase())) {
+      setDeckError(`“${name}” is already in your ${deckTab} list.`);
       return;
     }
-    setCustomMeals((current) => [...current, createCustomMeal(name, draftType)]);
+    setCustomMeals((current) => [...current, createCustomMeal(name, deckTab)]);
     setDraftName('');
     setDeckError('');
   }
@@ -193,48 +269,94 @@ export default function Home() {
 
   return (
     <div className="arena arena--picker">
-      <Atmosphere mode={spinningType ? 'spinning' : dinnerReady ? 'revealed' : 'idle'} />
+      <Atmosphere mode={spinningType ? 'spinning' : dinnerReady ? 'still' : 'idle'} />
       <main className="picker-shell">
         <header className="picker-heading">
-          <p className="arena-mode">{firebaseConfigured ? 'Your dinner picker' : 'Dinner picker preview'}</p>
-          <h1>Build tonight’s plate.</h1>
-          <p>Pick a main and a side separately. Change either one until dinner sounds right.</p>
+          {pickerStep !== 'side' && pickerStep !== 'vote-result' && <p className="arena-mode">{firebaseConfigured ? 'Your dinner picker' : 'Dinner picker preview'}</p>}
+          {pickerStep !== 'side' && pickerStep !== 'vote-result' && <h1>{pickerStep === 'vote' ? 'Family vote' : dinnerReady ? 'Dinner is decided.' : 'Build tonight’s plate.'}</h1>}
+          {pickerStep !== 'side' && pickerStep !== 'vote-result' && <p>{pickerStep === 'vote' ? 'You, Mom, and Bro each get one Yes or No vote.' : dinnerReady ? 'One main, one side, and no more wondering what to cook.' : 'One spin for the main, then one spin for the side.'}</p>}
         </header>
 
         {loading ? <Loading label="Loading your dinner list..." /> : (
-          <div className="picker-grid">
-            <PickerCard
-              type="main"
-              meal={mainChoice}
-              spinning={spinningType === 'main'}
-              disabled={Boolean(spinningType)}
-              availableCount={mains.length}
-              onSpin={() => spin('main')}
-            />
-            <PickerCard
-              type="side"
-              meal={sideChoice}
-              spinning={spinningType === 'side'}
-              disabled={Boolean(spinningType)}
-              availableCount={sides.length}
-              onSpin={() => spin('side')}
-            />
-          </div>
+          <>
+            {pickerStep === 'main' && (
+              <div className="picker-grid picker-grid--single">
+                <PickerStage
+                  type="main"
+                  spinning={spinningType === 'main'}
+                  disabled={Boolean(spinningType)}
+                  onSpin={() => spin('main')}
+                />
+              </div>
+            )}
+            {pickerStep === 'side' && (
+              <div className="picker-grid picker-grid--single">
+                <PickerStage
+                  type="side"
+                  mainChoice={mainChoice}
+                  spinning={spinningType === 'side'}
+                  disabled={Boolean(spinningType)}
+                  onSpin={() => spin('side')}
+                  onBack={pickAnotherMain}
+                />
+              </div>
+            )}
+          </>
         )}
 
-        {dinnerReady && (
+        {pickerStep === 'result' && dinnerReady && (
           <section className="dinner-summary" aria-live="polite">
             <p><Sparkles size={16} aria-hidden="true" /> Tonight’s dinner</p>
             <h2>{mainChoice.name} <span>with</span> {sideChoice.name}</h2>
             <div>
-              {!mainChoice.isCustom && (
-                <Link className="button button--dark" to={'/meals/' + mainChoice.id}>
-                  Recipe <BookOpen size={17} aria-hidden="true" />
-                </Link>
+              {user && firebaseConfigured ? (
+                <Button variant="outline" className="vote-open" onClick={openVoting} disabled={voteSaving}>
+                  <Vote size={18} aria-hidden="true" /> {voteSaving ? 'Opening vote…' : `Start ${VOTE_DURATION_SECONDS}-sec family vote`}
+                </Button>
+              ) : user ? (
+                <Button variant="outline" className="vote-open" onClick={openVoting}>Set up voting</Button>
+              ) : (
+                <Link className="button button--outline vote-open" to="/login"><Vote size={18} aria-hidden="true" /> Log in to vote</Link>
               )}
-              <Button variant="outline" onClick={() => { setMainChoice(null); setSideChoice(null); }}>
-                Clear picks
+              <Button variant="outline" onClick={startAgain}>
+                Spin a new dinner
               </Button>
+            </div>
+          </section>
+        )}
+
+        {pickerStep === 'vote' && dinnerReady && (
+          <section className="vote-screen" aria-live="polite">
+            <p className="vote-screen__label"><UsersRound size={16} aria-hidden="true" /> Shared dinner vote</p>
+            <h2>{mainChoice.name} <span>with</span> {sideChoice.name}</h2>
+            <VoteCountdown endsAt={poll?.endsAt} onComplete={() => setPickerStep('vote-result')} />
+            <p className="vote-screen__prompt">Would you eat this tonight?</p>
+            <div className="vote-actions">
+              <Button className="vote-choice vote-choice--yes" onClick={() => submitVote('yes')} disabled={voteSaving}>
+                <ThumbsUp size={22} aria-hidden="true" /> Yes
+              </Button>
+              <Button className="vote-choice vote-choice--no" onClick={() => submitVote('no')} disabled={voteSaving}>
+                <ThumbsDown size={22} aria-hidden="true" /> No
+              </Button>
+            </div>
+            <p className="vote-progress"><strong>{voteSummary.total}</strong> of {FAMILY_VOTE_TARGET} family votes in</p>
+            {voteSummary.voters.length > 0 && <p className="vote-voters">Voted: {voteSummary.voters.map((voter) => voter.name).join(' · ')}</p>}
+            <button className="vote-back" type="button" onClick={() => setPickerStep('result')}>Back to the meal</button>
+          </section>
+        )}
+
+        {pickerStep === 'vote-result' && dinnerReady && (
+          <section className="vote-results" aria-live="polite">
+            <p className="vote-screen__label"><Vote size={16} aria-hidden="true" /> Family vote complete</p>
+            <h2>{getVoteOutcome(voteSummary).title}</h2>
+            <p className="vote-result-meal">{mainChoice.name} <span>with</span> {sideChoice.name}</p>
+            <div className="vote-totals">
+              <div><ThumbsUp size={20} aria-hidden="true" /><strong>{voteSummary.yes}</strong><span>Yes</span></div>
+              <div><ThumbsDown size={20} aria-hidden="true" /><strong>{voteSummary.no}</strong><span>No</span></div>
+            </div>
+            <p className="vote-note">{getVoteOutcome(voteSummary).message}</p>
+            <div className="vote-results__actions">
+              <Button variant="outline" onClick={startAgain}>Spin a new dinner</Button>
             </div>
           </section>
         )}
@@ -258,27 +380,32 @@ export default function Home() {
               <button type="button" className="deck-close" onClick={() => setDeckOpen(false)} aria-label="Close meal list"><X size={21} /></button>
             </header>
 
+            <div className="deck-tabs" role="tablist" aria-label="Meal type">
+              <button type="button" role="tab" aria-selected={deckTab === 'main'} className={deckTab === 'main' ? 'is-active' : ''} onClick={() => { setDeckTab('main'); setDeckError(''); }}>
+                Mains <span>{deckMains.length}</span>
+              </button>
+              <button type="button" role="tab" aria-selected={deckTab === 'side'} className={deckTab === 'side' ? 'is-active' : ''} onClick={() => { setDeckTab('side'); setDeckError(''); }}>
+                Sides <span>{deckSides.length}</span>
+              </button>
+            </div>
+
             <form className="deck-form" onSubmit={addMeal}>
-              <label htmlFor="meal-name">Add a meal</label>
+              <label htmlFor="meal-name">Add a {deckTab}</label>
               <div>
-                <input id="meal-name" value={draftName} onChange={(event) => setDraftName(event.target.value)} placeholder="e.g. Mom’s grilled chicken" maxLength="70" />
-                <select value={draftType} onChange={(event) => setDraftType(event.target.value)} aria-label="Meal type">
-                  <option value="main">Main</option>
-                  <option value="side">Side</option>
-                </select>
+                <input id="meal-name" value={draftName} onChange={(event) => setDraftName(event.target.value)} placeholder={deckTab === 'main' ? 'e.g. Steak' : 'e.g. Rice'} maxLength="70" />
                 <Button type="submit" className="deck-add"><Plus size={18} aria-hidden="true" /> Add</Button>
               </div>
               {deckError && <p className="deck-form__error" role="status">{deckError}</p>}
             </form>
 
-            <div className="deck-list" aria-label="Meals in your picker">
-              {deckMeals.length ? deckMeals.map((meal) => (
+            <div className="deck-list" role="tabpanel" aria-label={`${deckTab === 'main' ? 'Main meals' : 'Side meals'} in your picker`}>
+              <h3>{deckTab === 'main' ? 'Main meals' : 'Side meals'}</h3>
+              {visibleDeckMeals.length ? visibleDeckMeals.map((meal) => (
                 <div className="deck-list__item" key={meal.id}>
-                  <span>{meal.type === 'main' ? 'Main' : 'Side'}</span>
                   <strong>{meal.name}</strong>
                   <button type="button" onClick={() => removeMeal(meal)} aria-label={`Remove ${meal.name} from picker`}><Trash2 size={17} /></button>
                 </div>
-              )) : <p className="deck-empty">Your picker is empty. Add a main and a side to start spinning.</p>}
+              )) : <p className="deck-empty">No {deckTab}s yet. Add one above to make it available in the spinner.</p>}
             </div>
             {hiddenMealIds.length > 0 && <button type="button" className="deck-restore" onClick={restoreBuiltInMeals}>Restore starter meals</button>}
           </aside>

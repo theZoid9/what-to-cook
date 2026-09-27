@@ -78,7 +78,7 @@ Without Firebase environment variables, the app opens in a clearly marked recipe
 
 ## Firebase Setup
 
-1. In the [Firebase console](https://console.firebase.google.com/), create a project and register a **Web app**. In Project settings → Your apps, copy the six values from the web app’s SDK configuration.
+1. In the [Firebase console](https://console.firebase.google.com/), create a project and register a **Web app**. In Project settings → Your apps, copy the six values from the web app’s SDK configuration. In **Authentication → Sign-in method**, enable **Anonymous** sign-in — the app uses a name-only login, with no email or password.
 2. Enable **Authentication → Sign-in method → Email/Password**.
 3. Create **Firestore Database** in production mode. Keep the database ID as `(default)`; the seed script writes to that database.
 4. Create **Storage** in production mode. The storage location cannot be changed later, so select a region close to your users.

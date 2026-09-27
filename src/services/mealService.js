@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import { db, firebaseConfigured, friendlyFirebaseError } from './firebase';
 import { sampleMeals } from '../data/sampleMeals';
 
@@ -24,21 +24,11 @@ export async function getMeals() {
 
   try {
     const snapshot = await getDocs(collection(db, 'meals'));
-    return snapshot.docs.map((meal) => normaliseMeal(meal.id, meal.data()));
+    const mealsById = new Map(sampleMeals.map((meal) => [meal.id, meal]));
+    snapshot.docs.forEach((meal) => mealsById.set(meal.id, normaliseMeal(meal.id, meal.data())));
+    return [...mealsById.values()];
   } catch (error) {
     throw new Error(friendlyFirebaseError(error));
   }
 }
 
-export async function getMealById(mealId) {
-  if (!firebaseConfigured) {
-    return sampleMeals.find((meal) => meal.id === mealId) || null;
-  }
-
-  try {
-    const snapshot = await getDoc(doc(db, 'meals', mealId));
-    return snapshot.exists() ? normaliseMeal(snapshot.id, snapshot.data()) : null;
-  } catch (error) {
-    throw new Error(friendlyFirebaseError(error));
-  }
-}

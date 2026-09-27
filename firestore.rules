@@ -22,5 +22,34 @@ service cloud.firestore {
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid;
     }
+
+    match /dinnerVotes/{dateKey} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.dateKey == dateKey
+        && request.resource.data.main.type == 'main'
+        && request.resource.data.side.type == 'side';
+      allow update, delete: if false;
+
+      match /votes/{userId} {
+        allow read: if request.auth != null;
+        allow create, update: if request.auth != null
+          && request.auth.uid == userId
+          && request.resource.data.userId == request.auth.uid
+          && (request.resource.data.choice == 'yes' || request.resource.data.choice == 'no');
+        allow delete: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    match /dinnerVoteState/current {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.updatedBy == request.auth.uid;
+      allow update: if request.auth != null
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.time >= resource.data.endsAt;
+      allow delete: if false;
+    }
   }
 }

@@ -35,7 +35,7 @@ export default function Atmosphere({ mode = 'idle' }) {
     scene.add(board);
     const boardEdge = new THREE.Mesh(
       new THREE.RingGeometry(2.66, 2.73, 64),
-      new THREE.MeshBasicMaterial({ color: 0xf1c47a, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
+      new THREE.MeshBasicMaterial({ color: 0x665d55, transparent: true, opacity: 0.48, side: THREE.DoubleSide })
     );
     boardEdge.position.z = -0.9;
     scene.add(boardEdge);
@@ -49,7 +49,7 @@ export default function Atmosphere({ mode = 'idle' }) {
     bladeShape.closePath();
     const bladeGeometry = new THREE.ShapeGeometry(bladeShape);
     const handleGeometry = new THREE.BoxGeometry(0.92, 0.29, 0.04);
-    const bladeMaterial = new THREE.MeshBasicMaterial({ color: 0xfff7e7, transparent: true, opacity: 0.93, side: THREE.DoubleSide });
+    const bladeMaterial = new THREE.MeshBasicMaterial({ color: 0x625a53, transparent: true, opacity: 0.74, side: THREE.DoubleSide });
     const handleMaterial = new THREE.MeshBasicMaterial({ color: 0x4a281d, transparent: true, opacity: 0.96 });
     const topKnife = makeKnife(bladeGeometry, bladeMaterial, handleGeometry, handleMaterial, -0.48, [-0.2, 0.78, 0.9]);
     const bottomKnife = makeKnife(bladeGeometry, bladeMaterial, handleGeometry, handleMaterial, 2.62, [0.35, -0.82, 0.82]);
@@ -93,6 +93,7 @@ export default function Atmosphere({ mode = 'idle' }) {
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
+      if (mode === 'still') renderer.render(scene, camera);
     };
     const observer = new ResizeObserver(resize);
     observer.observe(host);
@@ -123,7 +124,7 @@ export default function Atmosphere({ mode = 'idle' }) {
       renderer.render(scene, camera);
       frameId = requestAnimationFrame(animate);
     };
-    frameId = requestAnimationFrame(animate);
+    if (mode !== 'still') frameId = requestAnimationFrame(animate);
 
     return () => {
       cancelAnimationFrame(frameId);

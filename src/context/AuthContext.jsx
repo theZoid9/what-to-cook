@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import {
-  createUserWithEmailAndPassword,
   onAuthStateChanged,
-  signInWithEmailAndPassword,
+  signInAnonymously,
   signOut,
   updateProfile
 } from 'firebase/auth';
@@ -27,28 +26,19 @@ export function AuthProvider({ children }) {
     });
   }, []);
 
-  async function login(email, password) {
+  async function loginWithName(name) {
     if (!firebaseConfigured) {
       throw new Error('Firebase is not configured yet. Add your VITE_FIREBASE values to .env.');
     }
+    const cleanedName = name.trim();
+    if (!cleanedName) throw new Error('Enter your name first.');
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-      throw new Error(friendlyFirebaseError(error));
-    }
-  }
-
-  async function register(name, email, password) {
-    if (!firebaseConfigured) {
-      throw new Error('Firebase is not configured yet. Add your VITE_FIREBASE values to .env.');
-    }
-    try {
-      const credential = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(credential.user, { displayName: name });
+      if (auth.currentUser) await signOut(auth);
+      const credential = await signInAnonymously(auth);
+      await updateProfile(credential.user, { displayName: cleanedName });
       await setDoc(doc(db, 'users', credential.user.uid), {
         userId: credential.user.uid,
-        name,
-        email,
+        name: cleanedName,
         createdAt: serverTimestamp()
       });
     } catch (error) {
@@ -63,7 +53,7 @@ export function AuthProvider({ children }) {
   }
 
   const value = useMemo(
-    () => ({ user, loading, login, register, logout, firebaseConfigured }),
+    () => ({ user, loading, loginWithName, logout, firebaseConfigured }),
     [user, loading]
   );
 

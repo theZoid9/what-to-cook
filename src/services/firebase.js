@@ -32,6 +32,8 @@ export function friendlyFirebaseError(error) {
     'auth/invalid-credential': 'The email or password is incorrect.',
     'auth/invalid-email': 'Enter a valid email address.',
     'auth/weak-password': 'Choose a password with at least six characters.',
+    'auth/operation-not-allowed': 'Enable Anonymous sign-in in Firebase Authentication, then try again.',
+    'auth/admin-restricted-operation': 'Enable Anonymous sign-in in Firebase Authentication, then try again.',
     'auth/network-request-failed': 'We could not reach the service. Check your connection and try again.',
     'permission-denied': 'You do not have permission to do that.'
   };
