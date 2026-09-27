@@ -11,12 +11,13 @@ import { castDinnerVote, EMPTY_VOTE_SUMMARY, subscribeToCurrentDinnerVote } from
 import { getVoteOutcome } from '../utils/voteUtils';
 
 export default function VotePage() {
-  const { user, firebaseConfigured } = useAuth();
+  const { user, firebaseConfigured, sessionRole } = useAuth();
   const [summary, setSummary] = useState(EMPTY_VOTE_SUMMARY);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [voteEnded, setVoteEnded] = useState(false);
+  const mealApproved = summary.yes > summary.no;
 
   useEffect(() => {
     // A person changing at the entry screen must never briefly inherit the
@@ -77,7 +78,11 @@ export default function VotePage() {
               <div><ThumbsDown size={20} aria-hidden="true" /><strong>{summary.no}</strong><span>No</span></div>
             </div>
             <p className="vote-note">{getVoteOutcome(summary).message}</p>
-            {summary.total > 0 && <SaveDinnerButton poll={summary.poll} />}
+            {mealApproved ? (
+              <><p className="vote-next-step">Next: save dinner to this week, then get cooking.</p><SaveDinnerButton poll={summary.poll} /></>
+            ) : sessionRole === 'cook' ? (
+              <div className="vote-results__actions"><p className="vote-next-step">Next: choose another dinner and start a fresh vote.</p><Link className="button button--outline" to="/">Choose another dinner</Link></div>
+            ) : <p className="vote-next-step">The cook will choose another dinner shortly.</p>}
           </section>
         ) : (
           <section className="vote-page__poll" aria-live="polite">

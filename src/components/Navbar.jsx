@@ -1,4 +1,4 @@
-import { CalendarDays, ChefHat, UsersRound, Vote } from 'lucide-react';
+import { CalendarDays, House, UsersRound, Vote } from 'lucide-react';
 import { NavLink, Link } from 'react-router-dom';
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
@@ -9,16 +9,17 @@ export default function Navbar() {
   return (
     <>
       <nav className="floating-controls" aria-label="Primary navigation">
-        {sessionRole === 'cook' && <Link className="mini-brand" to="/" aria-label="What to Cook home">
-          <ChefHat size={20} aria-hidden="true" />
-        </Link>}
         <div className="floating-controls__right">
-          <NavLink className="floating-icon" to="/vote" aria-label="Vote on tonight's dinner" title="Vote">
+          {sessionRole !== 'cook' && <NavLink className="floating-icon" to="/vote" aria-label="Vote on tonight's dinner" title="Vote">
             <Vote size={19} aria-hidden="true" />
-          </NavLink>
-          <Link className="floating-icon" to="/login" aria-label={user ? 'Use a different name' : 'Sign in'} title={user?.displayName || 'Sign in'}>
+          </NavLink>}
+          <span className="signed-in-chip signed-in-chip--static" aria-label={user ? `Signed in as ${user.displayName}` : 'Signed in'}>
             <UsersRound size={19} aria-hidden="true" />
-          </Link>
+            <span>{user?.displayName || 'Sign in'}</span>
+          </span>
+          {sessionRole === 'cook' && <Link className="floating-icon" to="/" aria-label="Go to dinner picker" title="Home">
+            <House size={19} aria-hidden="true" />
+          </Link>}
         </div>
       </nav>
       {sessionRole === 'cook' && <NavLink className="week-fab" to="/week" aria-label="This week's meals">

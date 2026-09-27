@@ -1,4 +1,4 @@
-import { ListPlus, Plus, RotateCw, Sparkles, ThumbsDown, ThumbsUp, Trash2, UsersRound, Vote, X } from 'lucide-react';
+import { ListPlus, PencilLine, Plus, RotateCw, Sparkles, ThumbsDown, ThumbsUp, Trash2, UsersRound, Vote, X } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import React, { useEffect, useMemo, useState } from 'react';
 import Button from '../components/Button';
@@ -84,6 +84,10 @@ export default function Home() {
   const [spinningType, setSpinningType] = useState('');
   const [error, setError] = useState('');
   const [deckOpen, setDeckOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualMainName, setManualMainName] = useState('');
+  const [manualSideName, setManualSideName] = useState('');
+  const [manualError, setManualError] = useState('');
   const [draftName, setDraftName] = useState('');
   const [deckTab, setDeckTab] = useState('main');
   const [deckError, setDeckError] = useState('');
@@ -168,6 +172,7 @@ export default function Home() {
   const deckSides = useMemo(() => deckMeals.filter((meal) => meal.type === 'side'), [deckMeals]);
   const visibleDeckMeals = deckTab === 'main' ? deckMains : deckSides;
   const dinnerReady = Boolean(mainChoice && sideChoice);
+  const mealApproved = voteSummary.yes > voteSummary.no;
 
   function spin(type) {
     const candidates = type === 'main' ? mains : sides;
@@ -197,7 +202,7 @@ export default function Home() {
     }, 950);
   }
 
-  async function openVoting() {
+  async function openVoting(selection = { main: mainChoice, side: sideChoice }) {
     if (!firebaseConfigured) {
       setError('Voting needs Firebase to be configured first.');
       return;
@@ -206,12 +211,12 @@ export default function Home() {
       setError('Log in first so each person can have one vote.');
       return;
     }
-    if (!mainChoice || !sideChoice) return;
+    if (!selection.main || !selection.side) return;
 
     setVoteSaving(true);
     setError('');
     try {
-      const currentPoll = await getOrCreateTonightVote(user.uid, { main: mainChoice, side: sideChoice });
+      const currentPoll = await getOrCreateTonightVote(user.uid, selection);
       setPoll(currentPoll);
       setMainChoice(currentPoll.main);
       setSideChoice(currentPoll.side);
@@ -221,6 +226,26 @@ export default function Home() {
     } finally {
       setVoteSaving(false);
     }
+  }
+
+  function openManualDinner() {
+    setManualError('');
+    setManualOpen(true);
+  }
+
+  function submitManualDinner(event) {
+    event.preventDefault();
+    const main = manualMainName.trim();
+    const side = manualSideName.trim();
+    if (!main || !side) {
+      setManualError('Add both a main and a side first.');
+      return;
+    }
+    setManualOpen(false);
+    setManualMainName('');
+    setManualSideName('');
+    setManualError('');
+    openVoting({ main: createCustomMeal(main, 'main'), side: createCustomMeal(side, 'side') });
   }
 
   async function submitVote(choice) {
@@ -254,6 +279,14 @@ export default function Home() {
     } finally {
       setVoteSaving(false);
     }
+  }
+
+  function chooseAnotherDinner() {
+    setMainChoice(null);
+    setSideChoice(null);
+    setPoll(null);
+    setVoteSummary({ yes: 0, no: 0, total: 0, mine: '', voters: [] });
+    setPickerStep('pick');
   }
 
   function addMeal(event) {
@@ -302,22 +335,25 @@ export default function Home() {
         </header>
 
         {pickerStep === 'pick' && (
-          <div className="picker-grid picker-grid--double">
-            <PickerStage
-              type="main"
-              meal={mainChoice}
-              spinning={spinningType === 'main'}
-              disabled={Boolean(spinningType)}
-              onSpin={() => spin('main')}
-            />
-            <PickerStage
-              type="side"
-              meal={sideChoice}
-              spinning={spinningType === 'side'}
-              disabled={Boolean(spinningType)}
-              onSpin={() => spin('side')}
-            />
-          </div>
+          <>
+            <div className="picker-grid picker-grid--double">
+              <PickerStage
+                type="main"
+                meal={mainChoice}
+                spinning={spinningType === 'main'}
+                disabled={Boolean(spinningType)}
+                onSpin={() => spin('main')}
+              />
+              <PickerStage
+                type="side"
+                meal={sideChoice}
+                spinning={spinningType === 'side'}
+                disabled={Boolean(spinningType)}
+                onSpin={() => spin('side')}
+              />
+            </div>
+            <button className="manual-dinner-trigger" type="button" onClick={openManualDinner}><PencilLine size={16} aria-hidden="true" /> Enter dinner manually</button>
+          </>
         )}
 
         {pickerStep === 'pick' && dinnerReady && (
@@ -368,7 +404,11 @@ export default function Home() {
               <div><ThumbsDown size={20} aria-hidden="true" /><strong>{voteSummary.no}</strong><span>No</span></div>
             </div>
             <p className="vote-note">{getVoteOutcome(voteSummary).message}</p>
-            {voteSummary.total > 0 && <SaveDinnerButton poll={poll} />}
+            {mealApproved ? (
+              <><p className="vote-next-step">Next: save dinner to this week, then get cooking.</p><SaveDinnerButton poll={poll} /></>
+            ) : (
+              <div className="vote-results__actions"><p className="vote-next-step">Next: choose a different dinner and start a fresh vote.</p><Button variant="outline" onClick={chooseAnotherDinner}>Choose another dinner</Button></div>
+            )}
           </section>
         )}
 
@@ -419,6 +459,27 @@ export default function Home() {
               )) : <p className="deck-empty">No {deckTab}s yet. Add one above to make it available in the spinner.</p>}
             </div>
             {hiddenMealIds.length > 0 && <button type="button" className="deck-restore" onClick={restoreBuiltInMeals}>Restore starter meals</button>}
+          </aside>
+        </div>
+      )}
+
+      {manualOpen && (
+        <div className="deck-overlay" role="presentation">
+          <button className="deck-overlay__backdrop" type="button" onClick={() => setManualOpen(false)} aria-label="Close manual dinner entry" />
+          <aside className="deck-sheet manual-dinner-sheet" role="dialog" aria-modal="true" aria-labelledby="manual-dinner-title">
+            <header>
+              <div>
+                <p>Tonight’s dinner</p>
+                <h2 id="manual-dinner-title">Enter it manually</h2>
+              </div>
+              <button type="button" className="deck-close" onClick={() => setManualOpen(false)} aria-label="Close manual dinner entry"><X size={21} /></button>
+            </header>
+            <form className="manual-dinner-form" onSubmit={submitManualDinner}>
+              <label htmlFor="manual-main">Main dish<input id="manual-main" value={manualMainName} onChange={(event) => setManualMainName(event.target.value)} placeholder="e.g. Steak" maxLength="70" autoFocus /></label>
+              <label htmlFor="manual-side">Side dish<input id="manual-side" value={manualSideName} onChange={(event) => setManualSideName(event.target.value)} placeholder="e.g. Garden salad" maxLength="70" /></label>
+              {manualError && <p className="deck-form__error" role="alert">{manualError}</p>}
+              <Button type="submit" className="manual-dinner-submit"><Vote size={18} aria-hidden="true" /> Use this dinner & vote</Button>
+            </form>
           </aside>
         </div>
       )}
