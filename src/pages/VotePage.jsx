@@ -17,6 +17,7 @@ export default function VotePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [voteEnded, setVoteEnded] = useState(false);
+  const [comment, setComment] = useState('');
   const mealApproved = summary.yes > summary.no;
   const isCook = sessionRole === 'cook';
   const canCancelPoll = sessionRole === 'cook' && summary.poll?.createdBy === user?.uid;
@@ -63,7 +64,8 @@ export default function VotePage() {
     setSaving(true);
     setError('');
     try {
-      await castDinnerVote(summary.poll.id, user.uid, choice, user.displayName);
+      await castDinnerVote(summary.poll.id, user.uid, choice, user.displayName, comment);
+      setComment('');
     } catch (voteError) {
       setError(voteError.message || 'We could not save your vote.');
     } finally {
@@ -124,6 +126,10 @@ export default function VotePage() {
             ) : (
               <>
                 <p className="vote-page__question">Would you eat this tonight?</p>
+                <label className="vote-comment" htmlFor="vote-comment">
+                  <span>Comment <em>optional</em></span>
+                  <textarea id="vote-comment" value={comment} onChange={(event) => setComment(event.target.value)} maxLength="240" placeholder="e.g. I’ll be home late" />
+                </label>
                 <div className="vote-actions">
                   <Button className="vote-choice vote-choice--yes" onClick={() => vote('yes')} disabled={saving}><ThumbsUp size={22} aria-hidden="true" /> Yes</Button>
                   <Button className="vote-choice vote-choice--no" onClick={() => vote('no')} disabled={saving}><ThumbsDown size={22} aria-hidden="true" /> No</Button>
@@ -131,7 +137,13 @@ export default function VotePage() {
               </>
             )}
             <p className="vote-progress"><strong>{summary.total}</strong> {summary.total === 1 ? 'vote' : 'votes'} in</p>
-            {summary.voters.length > 0 && <p className="vote-voters">Voted: {summary.voters.map((voter) => voter.name).join(' · ')}</p>}
+            {summary.voters.length > 0 && <ul className="vote-voters" aria-label="Votes received">
+              {summary.voters.map((voter) => <li key={voter.userId}>
+                <strong>{voter.name}</strong>
+                <span className={voter.choice === 'yes' ? 'vote-voters__yes' : 'vote-voters__no'}>{voter.choice === 'yes' ? 'Yes' : 'No'}</span>
+                {voter.comment && <em>{voter.comment}</em>}
+              </li>)}
+            </ul>}
             <div className="vote-totals">
               <div><ThumbsUp size={20} aria-hidden="true" /><strong>{summary.yes}</strong><span>Yes</span></div>
               <div><ThumbsDown size={20} aria-hidden="true" /><strong>{summary.no}</strong><span>No</span></div>

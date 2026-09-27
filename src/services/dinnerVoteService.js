@@ -109,15 +109,18 @@ export async function cancelCurrentDinnerVote(userId, pollId) {
   }
 }
 
-export async function castDinnerVote(pollId, userId, choice, voterName) {
+export async function castDinnerVote(pollId, userId, choice, voterName, comment = '') {
   if (choice !== 'yes' && choice !== 'no') throw new Error('Choose yes or no.');
   try {
-    await setDoc(doc(db, 'dinnerVotes', pollId, 'votes', userId), {
+    const vote = {
       userId,
       choice,
       voterName: String(voterName || 'Someone').trim().slice(0, 50) || 'Someone',
       updatedAt: serverTimestamp()
-    });
+    };
+    const cleanedComment = String(comment || '').trim().slice(0, 240);
+    if (cleanedComment) vote.comment = cleanedComment;
+    await setDoc(doc(db, 'dinnerVotes', pollId, 'votes', userId), vote);
   } catch (error) {
     throw new Error(friendlyFirebaseError(error));
   }
@@ -141,7 +144,12 @@ export function subscribeToDinnerVote(pollId, userId, onChange, onError) {
       no,
       total: yes + no,
       mine,
-      voters: votes.map((vote) => ({ userId: vote.userId, name: vote.voterName || 'Someone' }))
+      voters: votes.map((vote) => ({
+        userId: vote.userId,
+        name: vote.voterName || 'Someone',
+        choice: vote.choice === 'yes' ? 'yes' : 'no',
+        comment: typeof vote.comment === 'string' ? vote.comment : ''
+      }))
     });
   }
 
