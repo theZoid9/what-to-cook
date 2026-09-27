@@ -5,6 +5,7 @@ import Home from './pages/Home';
 import WeeklyMeals from './pages/WeeklyMeals';
 import Login from './pages/Login';
 import VotePage from './pages/VotePage';
+import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 import Loading from './components/Loading';
 import { useAuth } from './context/AuthContext';
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="/week" element={<WeeklyMeals />} />
           <Route path="/login" element={<Login />} />
           <Route path="/vote" element={<VotePage />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

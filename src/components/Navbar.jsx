@@ -1,12 +1,10 @@
-import { CalendarDays, House, UsersRound, Vote } from 'lucide-react';
-import { NavLink, Link, useLocation } from 'react-router-dom';
+import { CalendarDays, UsersRound, Vote } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
   const { user, sessionRole } = useAuth();
-  const location = useLocation();
-  const isVoting = location.pathname === '/vote';
 
   return (
     <>
@@ -15,13 +13,10 @@ export default function Navbar() {
           {sessionRole !== 'cook' && <NavLink className="floating-icon" to="/vote" aria-label="Vote on tonight's dinner" title="Vote">
             <Vote size={19} aria-hidden="true" />
           </NavLink>}
-          <span className="signed-in-chip signed-in-chip--static" aria-label={user ? `Signed in as ${user.displayName}` : 'Signed in'}>
+          <NavLink className="signed-in-chip" to="/profile" aria-label={user ? `Open profile for ${user.displayName}` : 'Open profile'} title="Profile">
             <UsersRound size={19} aria-hidden="true" />
             <span>{user?.displayName || 'Sign in'}</span>
-          </span>
-          {sessionRole === 'cook' && !isVoting && <Link className="floating-icon" to="/" aria-label="Go to dinner picker" title="Home">
-            <House size={19} aria-hidden="true" />
-          </Link>}
+          </NavLink>
         </div>
       </nav>
       {sessionRole === 'cook' && <NavLink className="week-fab" to="/week" aria-label="This week's meals">

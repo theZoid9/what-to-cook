@@ -104,9 +104,13 @@ export default function VotePage() {
             </div>
             <p className="vote-note">{getVoteOutcome(summary).message}</p>
             {mealApproved ? (
-              <><p className="vote-next-step">Next: save dinner to this week, then get cooking.</p><SaveDinnerButton poll={summary.poll} /></>
+              <>
+                <p className="vote-next-step">Next: save dinner to this week, then get cooking.</p>
+                <SaveDinnerButton poll={summary.poll} />
+                {sessionRole === 'cook' && <Link className="button button--outline vote-complete-home" to="/">Back to dinner picker</Link>}
+              </>
             ) : sessionRole === 'cook' ? (
-              <div className="vote-results__actions"><p className="vote-next-step">Next: choose another dinner and start a fresh vote.</p><Link className="button button--outline" to="/">Choose another dinner</Link></div>
+              <div className="vote-results__actions"><p className="vote-next-step">Next: choose another dinner and start a fresh vote.</p><Link className="button button--outline" to="/">Back to dinner picker</Link></div>
             ) : <p className="vote-next-step">The cook will choose another dinner shortly.</p>}
           </section>
         ) : (
