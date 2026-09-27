@@ -214,10 +214,20 @@ export function subscribeToCurrentDinnerVote(userId, onChange, onError) {
       const nextPollId = currentData?.pollId || '';
       const currentEndsAt = toMillis(currentData?.endsAt);
 
-      // The pointer is kept so the cook can retain their completed result, but
-      // it is no longer an active vote for anyone opening the page afterward.
-      if (!nextPollId || !isStillOpen(currentEndsAt)) {
+      if (!nextPollId) {
         clearOwnerTimer();
+        stopActivePoll();
+        receivedCurrent = true;
+        onChange(EMPTY_VOTE_SUMMARY);
+        return;
+      }
+
+      // A person already watching keeps the completed poll and can see its
+      // result. Someone opening the vote page after it ended sees waiting for
+      // the next dinner instead.
+      if (!isStillOpen(currentEndsAt)) {
+        clearOwnerTimer();
+        if (receivedCurrent && nextPollId === activePollId) return;
         stopActivePoll();
         receivedCurrent = true;
         onChange(EMPTY_VOTE_SUMMARY);

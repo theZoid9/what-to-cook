@@ -18,6 +18,7 @@ export default function VotePage() {
   const [error, setError] = useState('');
   const [voteEnded, setVoteEnded] = useState(false);
   const mealApproved = summary.yes > summary.no;
+  const isCook = sessionRole === 'cook';
   const canCancelPoll = sessionRole === 'cook' && summary.poll?.createdBy === user?.uid;
 
   useEffect(() => {
@@ -118,18 +119,24 @@ export default function VotePage() {
             <p className="vote-screen__label"><UsersRound size={16} aria-hidden="true" /> Tonight’s shared meal</p>
             <h1>{summary.poll.main.name} <span>with</span> {summary.poll.side.name}</h1>
             <VoteCountdown endsAt={summary.poll.endsAt} onComplete={() => setVoteEnded(true)} />
-            <p className="vote-page__question">Would you eat this tonight?</p>
-            <div className="vote-actions">
-              <Button className="vote-choice vote-choice--yes" onClick={() => vote('yes')} disabled={saving}><ThumbsUp size={22} aria-hidden="true" /> Yes</Button>
-              <Button className="vote-choice vote-choice--no" onClick={() => vote('no')} disabled={saving}><ThumbsDown size={22} aria-hidden="true" /> No</Button>
-            </div>
+            {isCook ? (
+              <p className="vote-page__question">Vote is open. Watch responses come in below.</p>
+            ) : (
+              <>
+                <p className="vote-page__question">Would you eat this tonight?</p>
+                <div className="vote-actions">
+                  <Button className="vote-choice vote-choice--yes" onClick={() => vote('yes')} disabled={saving}><ThumbsUp size={22} aria-hidden="true" /> Yes</Button>
+                  <Button className="vote-choice vote-choice--no" onClick={() => vote('no')} disabled={saving}><ThumbsDown size={22} aria-hidden="true" /> No</Button>
+                </div>
+              </>
+            )}
             <p className="vote-progress"><strong>{summary.total}</strong> {summary.total === 1 ? 'vote' : 'votes'} in</p>
             {summary.voters.length > 0 && <p className="vote-voters">Voted: {summary.voters.map((voter) => voter.name).join(' · ')}</p>}
             <div className="vote-totals">
               <div><ThumbsUp size={20} aria-hidden="true" /><strong>{summary.yes}</strong><span>Yes</span></div>
               <div><ThumbsDown size={20} aria-hidden="true" /><strong>{summary.no}</strong><span>No</span></div>
             </div>
-            <p className="vote-note">{summary.mine ? `Your vote: ${summary.mine === 'yes' ? 'Yes' : 'No'}. You can change it whenever you like.` : 'Choose Yes or No to add your vote.'}</p>
+            <p className="vote-note">{isCook ? 'The cook does not vote. These totals update as people respond.' : summary.mine ? `Your vote: ${summary.mine === 'yes' ? 'Yes' : 'No'}. You can change it whenever you like.` : 'Choose Yes or No to add your vote.'}</p>
             {canCancelPoll && <button className="vote-back" type="button" onClick={cancelVote} disabled={saving}>Cancel this vote</button>}
           </section>
         )}
