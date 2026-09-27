@@ -10,6 +10,17 @@ import { useAuth } from '../context/AuthContext';
 import { cancelCurrentDinnerVote, castDinnerVote, COOK_HEARTBEAT_MS, EMPTY_VOTE_SUMMARY, keepCurrentVoteAlive, subscribeToCurrentDinnerVote } from '../services/dinnerVoteService';
 import { getVoteOutcome } from '../utils/voteUtils';
 
+function VoterList({ voters }) {
+  if (!voters.length) return null;
+  return <ul className="vote-voters" aria-label="Votes received">
+    {voters.map((voter) => <li key={voter.userId}>
+      <strong>{voter.name}</strong>
+      <span className={voter.choice === 'yes' ? 'vote-voters__yes' : 'vote-voters__no'}>{voter.choice === 'yes' ? 'Yes' : 'No'}</span>
+      {voter.comment && <em>{voter.comment}</em>}
+    </li>)}
+  </ul>;
+}
+
 export default function VotePage() {
   const { user, firebaseConfigured, sessionRole } = useAuth();
   const [summary, setSummary] = useState(EMPTY_VOTE_SUMMARY);
@@ -105,16 +116,17 @@ export default function VotePage() {
               <div><ThumbsUp size={20} aria-hidden="true" /><strong>{summary.yes}</strong><span>Yes</span></div>
               <div><ThumbsDown size={20} aria-hidden="true" /><strong>{summary.no}</strong><span>No</span></div>
             </div>
+            <VoterList voters={summary.voters} />
             <p className="vote-note">{getVoteOutcome(summary).message}</p>
-            {mealApproved ? (
+            {mealApproved && canCancelPoll ? (
               <>
                 <p className="vote-next-step">Next: save dinner to this week, then get cooking.</p>
                 <SaveDinnerButton poll={summary.poll} />
-                {sessionRole === 'cook' && <Link className="button button--outline vote-complete-home" to="/">Back to dinner picker</Link>}
+                <Link className="button button--outline vote-complete-home" to="/">Back to dinner picker</Link>
               </>
-            ) : sessionRole === 'cook' ? (
+            ) : !mealApproved && canCancelPoll ? (
               <div className="vote-results__actions"><p className="vote-next-step">Next: choose another dinner and start a fresh vote.</p><Link className="button button--outline" to="/">Back to dinner picker</Link></div>
-            ) : <p className="vote-next-step">The cook will choose another dinner shortly.</p>}
+            ) : <p className="vote-next-step">The cook will save the meal or choose another dinner shortly.</p>}
           </section>
         ) : (
           <section className="vote-page__poll" aria-live="polite">
@@ -137,13 +149,7 @@ export default function VotePage() {
               </>
             )}
             <p className="vote-progress"><strong>{summary.total}</strong> {summary.total === 1 ? 'vote' : 'votes'} in</p>
-            {summary.voters.length > 0 && <ul className="vote-voters" aria-label="Votes received">
-              {summary.voters.map((voter) => <li key={voter.userId}>
-                <strong>{voter.name}</strong>
-                <span className={voter.choice === 'yes' ? 'vote-voters__yes' : 'vote-voters__no'}>{voter.choice === 'yes' ? 'Yes' : 'No'}</span>
-                {voter.comment && <em>{voter.comment}</em>}
-              </li>)}
-            </ul>}
+            <VoterList voters={summary.voters} />
             <div className="vote-totals">
               <div><ThumbsUp size={20} aria-hidden="true" /><strong>{summary.yes}</strong><span>Yes</span></div>
               <div><ThumbsDown size={20} aria-hidden="true" /><strong>{summary.no}</strong><span>No</span></div>
