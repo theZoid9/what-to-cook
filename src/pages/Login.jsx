@@ -1,15 +1,25 @@
 import { ChefHat, Vote } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Button from '../components/Button';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
-  const { loginWithName, beginSession, firebaseConfigured, loading } = useAuth();
+  const { user, loginWithName, beginSession, firebaseConfigured, loading, sessionRole } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [destinationRole, setDestinationRole] = useState(null);
+
+  // Wait for AuthContext to hold the selected role before leaving the entry
+  // screen. Navigating in the same tick as beginSession can otherwise let the
+  // route guard see a temporarily empty role and bounce back here.
+  useEffect(() => {
+    if (!destinationRole || !user || sessionRole !== destinationRole) return;
+    setDestinationRole(null);
+    navigate(destinationRole === 'cook' ? '/' : '/vote', { replace: true });
+  }, [destinationRole, navigate, sessionRole, user]);
 
   async function continueWithName(role) {
     setError('');
@@ -17,7 +27,7 @@ export default function Login() {
     try {
       await loginWithName(name);
       beginSession(role);
-      navigate(role === 'cook' ? '/' : '/vote', { replace: true });
+      setDestinationRole(role);
     } catch (loginError) {
       setError(loginError.message);
     } finally {

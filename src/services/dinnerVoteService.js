@@ -1,4 +1,4 @@
-import { collection, doc, onSnapshot, runTransaction, serverTimestamp, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, runTransaction, serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch } from 'firebase/firestore';
 import { db, friendlyFirebaseError } from './firebase';
 
 export const VOTE_DURATION_SECONDS = 30;
@@ -34,51 +34,54 @@ function normalisePoll(id, data) {
   return {
     id,
     dateKey: data.dateKey,
+    createdBy: data.createdBy,
     main: data.main,
     side: data.side,
     endsAt: toMillis(data.endsAt)
   };
 }
 
-export async function getOrCreateTonightVote(userId, selection) {
+export function startTonightVote(userId, selection) {
   const currentVoteRef = doc(db, 'dinnerVoteState', 'current');
-  try {
-    const result = await runTransaction(db, async (transaction) => {
-      // Starting a vote always begins a new round from the meals on screen.
-      const pollId = `${getTodayKey()}-${Date.now()}`;
-      const endsAt = Timestamp.fromMillis(Date.now() + VOTE_DURATION_SECONDS * 1000);
-      const pollRef = doc(db, 'dinnerVotes', pollId);
+  // Starting a vote is two independent writes. A batch keeps them atomic
+  // without a transaction retrying against the cook's presence heartbeat.
+  const pollId = `${getTodayKey()}-${Date.now()}`;
+  const endsAt = Timestamp.fromMillis(Date.now() + VOTE_DURATION_SECONDS * 1000);
+  const poll = {
+    dateKey: pollId,
+    main: toVoteMeal(selection.main),
+    side: toVoteMeal(selection.side),
+    createdBy: userId,
+    createdAt: serverTimestamp(),
+    endsAt
+  };
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'dinnerVotes', pollId), poll);
+  batch.set(currentVoteRef, {
+    pollId,
+    endsAt,
+    ownerId: userId,
+    ownerLastActiveAt: Timestamp.fromMillis(Date.now()),
+    updatedBy: userId,
+    updatedAt: serverTimestamp()
+  });
 
-      const poll = {
-        dateKey: pollId,
-        main: toVoteMeal(selection.main),
-        side: toVoteMeal(selection.side),
-        createdBy: userId,
-        createdAt: serverTimestamp(),
-        endsAt
-      };
-      transaction.set(pollRef, poll);
-      transaction.set(currentVoteRef, {
-        pollId,
-        endsAt,
-        ownerId: userId,
-        ownerLastActiveAt: Timestamp.fromMillis(Date.now()),
-        updatedBy: userId,
-        updatedAt: serverTimestamp()
-      });
-      return { id: pollId, dateKey: pollId, main: poll.main, side: poll.side, endsAt: endsAt.toMillis() };
-    });
-    return result;
-  } catch (error) {
-    throw new Error(friendlyFirebaseError(error));
-  }
+  return {
+    poll: { id: pollId, dateKey: pollId, main: poll.main, side: poll.side, endsAt: endsAt.toMillis() },
+    commit: batch.commit().catch((error) => {
+      throw new Error(friendlyFirebaseError(error));
+    })
+  };
 }
 
 export async function keepCurrentVoteAlive(userId) {
   try {
     await updateDoc(doc(db, 'dinnerVoteState', 'current'), {
-      ownerId: userId,
-      ownerLastActiveAt: serverTimestamp(),
+      // `serverTimestamp()` is temporarily null in Firestore's local
+      // snapshot. The listener reads this field to decide whether the cook is
+      // still here, so using a concrete value prevents the vote from briefly
+      // falling back to the waiting screen on every heartbeat.
+      ownerLastActiveAt: Timestamp.fromMillis(Date.now()),
       updatedBy: userId,
       updatedAt: serverTimestamp()
     });

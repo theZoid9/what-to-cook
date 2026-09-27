@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import {
+  browserSessionPersistence,
   onAuthStateChanged,
   signInAnonymously,
   signOut,
+  setPersistence,
   updateProfile
 } from 'firebase/auth';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { auth, db, firebaseConfigured, friendlyFirebaseError } from '../services/firebase';
+import { auth, firebaseConfigured, friendlyFirebaseError } from '../services/firebase';
 
 const AuthContext = createContext(null);
 
@@ -23,18 +24,15 @@ export function AuthProvider({ children }) {
     }
 
     return onAuthStateChanged(auth, (currentUser) => {
+      // When somebody new checks in on a shared device, Firebase emits a
+      // sign-out event for the previous anonymous account followed by the new
+      // account. Ignore a late, stale event so it cannot clear the new session
+      // and bounce the app to the other role's route.
+      if (currentUser?.uid !== auth.currentUser?.uid) return;
       setUser(currentUser);
       setLoading(false);
     });
   }, []);
-
-  async function saveProfile(currentUser, name) {
-    await setDoc(doc(db, 'users', currentUser.uid), {
-      userId: currentUser.uid,
-      name,
-      lastSeenAt: serverTimestamp()
-    }, { merge: true });
-  }
 
   async function loginWithName(name) {
     if (!firebaseConfigured) {
@@ -43,13 +41,15 @@ export function AuthProvider({ children }) {
     const cleanedName = name.trim();
     if (!cleanedName) throw new Error('Enter your name first.');
     try {
+      // A name is a check-in for this browser session, not a permanent app
+      // profile saved on the device or in Firestore.
+      await setPersistence(auth, browserSessionPersistence);
       const currentUser = auth.currentUser;
       const isSamePerson = currentUser?.displayName?.toLocaleLowerCase() === cleanedName.toLocaleLowerCase();
 
       // A returning person on their own phone keeps the same anonymous Firebase ID.
       if (isSamePerson) {
         await updateProfile(currentUser, { displayName: cleanedName });
-        await saveProfile(currentUser, cleanedName);
         setUser(currentUser);
         return currentUser;
       }
@@ -57,7 +57,6 @@ export function AuthProvider({ children }) {
       if (currentUser) await signOut(auth);
       const credential = await signInAnonymously(auth);
       await updateProfile(credential.user, { displayName: cleanedName });
-      await saveProfile(credential.user, cleanedName);
       setUser(credential.user);
       return credential.user;
     } catch (error) {

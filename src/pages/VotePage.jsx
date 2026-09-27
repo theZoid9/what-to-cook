@@ -7,7 +7,7 @@ import Loading from '../components/Loading';
 import SaveDinnerButton from '../components/SaveDinnerButton';
 import VoteCountdown from '../components/VoteCountdown';
 import { useAuth } from '../context/AuthContext';
-import { castDinnerVote, EMPTY_VOTE_SUMMARY, subscribeToCurrentDinnerVote } from '../services/dinnerVoteService';
+import { cancelCurrentDinnerVote, castDinnerVote, COOK_HEARTBEAT_MS, EMPTY_VOTE_SUMMARY, keepCurrentVoteAlive, subscribeToCurrentDinnerVote } from '../services/dinnerVoteService';
 import { getVoteOutcome } from '../utils/voteUtils';
 
 export default function VotePage() {
@@ -18,6 +18,7 @@ export default function VotePage() {
   const [error, setError] = useState('');
   const [voteEnded, setVoteEnded] = useState(false);
   const mealApproved = summary.yes > summary.no;
+  const canCancelPoll = sessionRole === 'cook' && summary.poll?.createdBy === user?.uid;
 
   useEffect(() => {
     // A person changing at the entry screen must never briefly inherit the
@@ -45,6 +46,17 @@ export default function VotePage() {
     );
   }, [user, firebaseConfigured]);
 
+  // The cook is on this shared page too. Keep the vote alive while they are
+  // here, so voters only return to the waiting state when the cook truly leaves.
+  useEffect(() => {
+    if (!user || !canCancelPoll || voteEnded) return undefined;
+
+    const reportPresence = () => keepCurrentVoteAlive(user.uid).catch(() => {});
+    reportPresence();
+    const heartbeat = window.setInterval(reportPresence, COOK_HEARTBEAT_MS);
+    return () => window.clearInterval(heartbeat);
+  }, [user?.uid, canCancelPoll, summary.poll?.id, voteEnded]);
+
   async function vote(choice) {
     if (!user || !summary.poll || voteEnded) return;
     setSaving(true);
@@ -53,6 +65,19 @@ export default function VotePage() {
       await castDinnerVote(summary.poll.id, user.uid, choice, user.displayName);
     } catch (voteError) {
       setError(voteError.message || 'We could not save your vote.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function cancelVote() {
+    if (!user || !summary.poll || !canCancelPoll) return;
+    setSaving(true);
+    setError('');
+    try {
+      await cancelCurrentDinnerVote(user.uid, summary.poll.id);
+    } catch (cancelError) {
+      setError(cancelError.message || 'We could not cancel tonight’s vote.');
     } finally {
       setSaving(false);
     }
@@ -101,6 +126,7 @@ export default function VotePage() {
               <div><ThumbsDown size={20} aria-hidden="true" /><strong>{summary.no}</strong><span>No</span></div>
             </div>
             <p className="vote-note">{summary.mine ? `Your vote: ${summary.mine === 'yes' ? 'Yes' : 'No'}. You can change it whenever you like.` : 'Choose Yes or No to add your vote.'}</p>
+            {canCancelPoll && <button className="vote-back" type="button" onClick={cancelVote} disabled={saving}>Cancel this vote</button>}
           </section>
         )}
         {error && <p className="message message--error vote-page__error" role="alert">{error}</p>}

@@ -1,10 +1,12 @@
 import { CalendarDays, House, UsersRound, Vote } from 'lucide-react';
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useLocation } from 'react-router-dom';
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
   const { user, sessionRole } = useAuth();
+  const location = useLocation();
+  const isVoting = location.pathname === '/vote';
 
   return (
     <>
@@ -17,7 +19,7 @@ export default function Navbar() {
             <UsersRound size={19} aria-hidden="true" />
             <span>{user?.displayName || 'Sign in'}</span>
           </span>
-          {sessionRole === 'cook' && <Link className="floating-icon" to="/" aria-label="Go to dinner picker" title="Home">
+          {sessionRole === 'cook' && !isVoting && <Link className="floating-icon" to="/" aria-label="Go to dinner picker" title="Home">
             <House size={19} aria-hidden="true" />
           </Link>}
         </div>

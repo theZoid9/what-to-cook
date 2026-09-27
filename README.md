@@ -100,9 +100,6 @@ The seed command adds 20 starter records to the meals collection: 10 mains and 1
 
 ### Firestore Data Shape
 
-    users/{userId}
-      userId, name, email, createdAt
-
     meals/{mealId}
       name, type, description, imageUrl, ingredients[], instructions[],
       cookingTime, servings, difficulty
@@ -110,6 +107,16 @@ The seed command adds 20 starter records to the meals collection: 10 mains and 1
     weeklyMeals/{recordId}
       userId, mainMealId, sideMealIds[], mainMeal, sideMeals[],
       dateMade, weekKey, createdAt
+
+    dinnerVotes/{voteId}
+      createdBy, main, side, endsAt
+
+    dinnerVoteState/current
+      pollId, ownerId, ownerLastActiveAt, endsAt
+
+Names are used only for the current signed-in browser session and are not
+written to Firestore. Votes store a display name only alongside that vote so
+people can see who has responded while the vote is open.
 
 Meals are marked with a type of main or side. Ingredients are structured objects with name, quantity, and unit rather than a long formatted string.
 

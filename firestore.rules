@@ -8,11 +8,6 @@ service cloud.firestore {
         && request.auth.token.admin == true;
     }
 
-    match /users/{userId} {
-      allow create: if request.auth != null && request.auth.uid == userId;
-      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
-    }
-
     match /weeklyMeals/{recordId} {
       allow create: if request.auth != null
         && request.resource.data.userId == request.auth.uid;
@@ -47,9 +42,19 @@ service cloud.firestore {
       allow create: if request.auth != null
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.updatedBy == request.auth.uid;
-      allow update: if request.auth != null
-        && request.resource.data.ownerId == request.auth.uid
-        && request.resource.data.updatedBy == request.auth.uid;
+      allow update: if request.auth != null && (
+        // The cook who owns the active poll may keep it alive or cancel it.
+        (resource.data.ownerId == request.auth.uid
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.updatedBy == request.auth.uid)
+        // A different cook may replace an old/current poll only when their
+        // new dinnerVotes document is part of this same atomic write.
+        || (request.resource.data.pollId != ''
+          && request.resource.data.pollId != resource.data.pollId
+          && request.resource.data.ownerId == request.auth.uid
+          && request.resource.data.updatedBy == request.auth.uid
+          && getAfter(/databases/$(database)/documents/dinnerVotes/$(request.resource.data.pollId)).data.createdBy == request.auth.uid)
+      );
       allow delete: if false;
     }
   }

@@ -1,5 +1,5 @@
 import { ListPlus, PencilLine, Plus, RotateCw, Sparkles, ThumbsDown, ThumbsUp, Trash2, UsersRound, Vote, X } from 'lucide-react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import React, { useEffect, useMemo, useState } from 'react';
 import Button from '../components/Button';
 import Atmosphere from '../components/Atmosphere';
@@ -8,7 +8,7 @@ import VoteCountdown from '../components/VoteCountdown';
 import { getMeals } from '../services/mealService';
 import { sampleMeals } from '../data/sampleMeals';
 import { getCurrentWeekMeals, getMadeMealIds } from '../services/weeklyMealService';
-import { cancelCurrentDinnerVote, castDinnerVote, COOK_HEARTBEAT_MS, getOrCreateTonightVote, keepCurrentVoteAlive, subscribeToDinnerVote } from '../services/dinnerVoteService';
+import { cancelCurrentDinnerVote, castDinnerVote, COOK_HEARTBEAT_MS, keepCurrentVoteAlive, startTonightVote, subscribeToDinnerVote } from '../services/dinnerVoteService';
 import { useAuth } from '../context/AuthContext';
 import { getVoteOutcome } from '../utils/voteUtils';
 
@@ -72,6 +72,7 @@ function PickerStage({ type, meal, spinning, disabled, onSpin }) {
 
 export default function Home() {
   const { user, firebaseConfigured, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   // Starter meals are bundled with the app, so the spinner can appear as soon
   // as the cook checks in. Firebase then quietly adds any remote meals/history.
   const [meals, setMeals] = useState(sampleMeals);
@@ -94,6 +95,7 @@ export default function Home() {
   const [poll, setPoll] = useState(null);
   const [voteSummary, setVoteSummary] = useState({ yes: 0, no: 0, total: 0, mine: '', voters: [] });
   const [voteSaving, setVoteSaving] = useState(false);
+  const [openingVote, setOpeningVote] = useState(false);
 
   useEffect(() => {
     try {
@@ -139,7 +141,7 @@ export default function Home() {
   }, [user, firebaseConfigured, poll?.id]);
 
   useEffect(() => {
-    if (pickerStep !== 'vote' || !poll?.id || !user || !firebaseConfigured) return undefined;
+    if (openingVote || pickerStep !== 'vote' || !poll?.id || !user || !firebaseConfigured) return undefined;
 
     let isActive = true;
     const reportPresence = () => {
@@ -153,7 +155,7 @@ export default function Home() {
       isActive = false;
       window.clearInterval(heartbeat);
     };
-  }, [pickerStep, poll?.id, user?.uid, firebaseConfigured]);
+  }, [openingVote, pickerStep, poll?.id, user?.uid, firebaseConfigured]);
 
   const deckMeals = useMemo(() => {
     const hidden = new Set(hiddenMealIds);
@@ -202,7 +204,7 @@ export default function Home() {
     }, 950);
   }
 
-  async function openVoting(selection = { main: mainChoice, side: sideChoice }) {
+  async function openVoting(selection) {
     if (!firebaseConfigured) {
       setError('Voting needs Firebase to be configured first.');
       return;
@@ -211,20 +213,26 @@ export default function Home() {
       setError('Log in first so each person can have one vote.');
       return;
     }
-    if (!selection.main || !selection.side) return;
+    if (!selection?.main || !selection?.side) {
+      setError('Pick both a main and a side before starting the vote.');
+      return;
+    }
 
-    setVoteSaving(true);
+    setOpeningVote(true);
     setError('');
     try {
-      const currentPoll = await getOrCreateTonightVote(user.uid, selection);
+      const { poll: currentPoll, commit } = startTonightVote(user.uid, selection);
       setPoll(currentPoll);
       setMainChoice(currentPoll.main);
       setSideChoice(currentPoll.side);
-      setPickerStep(currentPoll.endsAt && currentPoll.endsAt <= Date.now() ? 'vote-result' : 'vote');
+      await commit;
+      navigate('/vote');
     } catch (voteError) {
       setError(voteError.message || 'We could not open tonight’s vote.');
+      setPoll(null);
+      setPickerStep('pick');
     } finally {
-      setVoteSaving(false);
+      setOpeningVote(false);
     }
   }
 
@@ -352,7 +360,6 @@ export default function Home() {
                 onSpin={() => spin('side')}
               />
             </div>
-            <button className="manual-dinner-trigger" type="button" onClick={openManualDinner}><PencilLine size={16} aria-hidden="true" /> Enter dinner manually</button>
           </>
         )}
 
@@ -362,11 +369,16 @@ export default function Home() {
             <h2>{mainChoice.name} <span>with</span> {sideChoice.name}</h2>
             <div>
               {user && firebaseConfigured ? (
-                <Button variant="outline" className="vote-open" onClick={openVoting} disabled={voteSaving}>
-                  <Vote size={18} aria-hidden="true" /> {voteSaving ? 'Starting vote…' : 'Start vote'}
+                <Button
+                  variant="outline"
+                  className="vote-open"
+                  onClick={() => openVoting({ main: mainChoice, side: sideChoice })}
+                  disabled={openingVote}
+                >
+                  <Vote size={18} aria-hidden="true" /> {openingVote ? 'Starting vote…' : 'Start vote'}
                 </Button>
               ) : user ? (
-                <Button variant="outline" className="vote-open" onClick={openVoting}>Set up voting</Button>
+                <Button variant="outline" className="vote-open" onClick={() => openVoting({ main: mainChoice, side: sideChoice })}>Set up voting</Button>
               ) : (
                 <Link className="button button--outline vote-open" to="/login"><Vote size={18} aria-hidden="true" /> Log in to vote</Link>
               )}
@@ -379,19 +391,21 @@ export default function Home() {
           <section className="vote-screen" aria-live="polite">
             <p className="vote-screen__label"><UsersRound size={16} aria-hidden="true" /> Dinner vote</p>
             <h2>{mainChoice.name} <span>with</span> {sideChoice.name}</h2>
-            <VoteCountdown endsAt={poll?.endsAt} onComplete={() => setPickerStep('vote-result')} />
-            <p className="vote-screen__prompt">Would you eat this tonight?</p>
-            <div className="vote-actions">
-              <Button className="vote-choice vote-choice--yes" onClick={() => submitVote('yes')} disabled={voteSaving}>
-                <ThumbsUp size={22} aria-hidden="true" /> Yes
-              </Button>
-              <Button className="vote-choice vote-choice--no" onClick={() => submitVote('no')} disabled={voteSaving}>
-                <ThumbsDown size={22} aria-hidden="true" /> No
-              </Button>
-            </div>
-            <p className="vote-progress"><strong>{voteSummary.total}</strong> {voteSummary.total === 1 ? 'vote' : 'votes'} in</p>
-            {voteSummary.voters.length > 0 && <p className="vote-voters">Voted: {voteSummary.voters.map((voter) => voter.name).join(' · ')}</p>}
-            <button className="vote-back" type="button" onClick={cancelVote} disabled={voteSaving}>Cancel this vote</button>
+            {openingVote ? <p className="vote-screen__prompt">Opening the vote…</p> : <>
+              <VoteCountdown endsAt={poll?.endsAt} onComplete={() => setPickerStep('vote-result')} />
+              <p className="vote-screen__prompt">Would you eat this tonight?</p>
+              <div className="vote-actions">
+                <Button className="vote-choice vote-choice--yes" onClick={() => submitVote('yes')} disabled={voteSaving}>
+                  <ThumbsUp size={22} aria-hidden="true" /> Yes
+                </Button>
+                <Button className="vote-choice vote-choice--no" onClick={() => submitVote('no')} disabled={voteSaving}>
+                  <ThumbsDown size={22} aria-hidden="true" /> No
+                </Button>
+              </div>
+              <p className="vote-progress"><strong>{voteSummary.total}</strong> {voteSummary.total === 1 ? 'vote' : 'votes'} in</p>
+              {voteSummary.voters.length > 0 && <p className="vote-voters">Voted: {voteSummary.voters.map((voter) => voter.name).join(' · ')}</p>}
+              <button className="vote-back" type="button" onClick={cancelVote} disabled={voteSaving}>Cancel this vote</button>
+            </>}
           </section>
         )}
 
@@ -418,6 +432,9 @@ export default function Home() {
 
       <button className="deck-fab" type="button" onClick={() => setDeckOpen(true)} aria-label="Manage main and side lists">
         <ListPlus size={23} aria-hidden="true" />
+      </button>
+      <button className="manual-fab" type="button" onClick={openManualDinner} aria-label="Enter dinner manually" title="Enter dinner manually">
+        <PencilLine size={21} aria-hidden="true" />
       </button>
 
       {deckOpen && (

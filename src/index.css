@@ -1201,6 +1201,7 @@ body {
 .vote-totals > div + div { border-color: rgba(24, 23, 22, 0.25); }
 .vote-results__actions .button, .vote-open { color: #171614; border-color: #171614; background: #fffdf8; }
 .vote-results__actions .button:hover, .vote-open:hover { color: #fffdf8; background: #181716; }
+.vote-open.button:not(:disabled):hover { transform: none; }
 
 .deck-fab { color: #fffdf8; border-color: #181716; background: #181716; box-shadow: 0 9px 25px rgba(17, 14, 11, 0.24); }
 .deck-fab:hover { color: #fffdf8; background: #3a3631; }
@@ -1382,8 +1383,8 @@ body {
 .vote-next-step { max-width: 27rem; margin: 1.1rem auto 0; color: #37332f; font-size: 0.9rem; font-weight: 750; line-height: 1.45; text-align: center; }
 .vote-results__actions { display: grid; justify-items: center; }
 .vote-results__actions .vote-next-step { margin-top: 0; }
-.manual-dinner-trigger { display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; width: fit-content; margin: 0.85rem auto 0; padding: 0.4rem 0.15rem; border: 0; color: #49443e; background: transparent; font: inherit; font-size: 0.8rem; font-weight: 750; text-decoration: underline; text-decoration-color: #a5a099; text-underline-offset: 0.25rem; }
-.manual-dinner-trigger:hover { color: #171614; }
+.manual-fab { position: fixed; z-index: 35; right: 1rem; bottom: 5rem; display: grid; width: 3.25rem; height: 3.25rem; place-items: center; padding: 0; border: 1px solid #5d7752; border-radius: 50%; color: #fffdf8; background: #5d7752; box-shadow: 0 9px 25px rgba(17, 14, 11, 0.2); transition: background 150ms ease, transform 150ms ease; }
+.manual-fab:hover { color: #fffdf8; background: #394f32; transform: translateY(-2px); }
 .manual-dinner-sheet { width: min(100%, 34rem); justify-self: center; }
 .manual-dinner-form { display: grid; gap: 0.85rem; }
 .manual-dinner-form label { display: grid; gap: 0.45rem; color: #171614; font-size: 0.82rem; font-weight: 800; }
@@ -1400,9 +1401,9 @@ body {
   .arena--picker .spin-stage--compact .spin-core { width: min(34vw, 11rem); min-height: min(34vw, 11rem); }
   .arena--picker .picker-shell > .dinner-summary { order: 1; min-height: 0; margin: 0 auto 0.6rem; padding: 0.2rem 0.25rem 0.4rem; }
   .arena--picker .picker-grid--double { order: 2; }
-  .manual-dinner-trigger { order: 3; margin-top: 0.45rem; }
 }
 
 @media (min-width: 700px) {
   .floating-controls { top: 1.5rem; right: 1.5rem; left: 1.5rem; }
+  .manual-fab { right: 1.5rem; bottom: 5.5rem; }
 }

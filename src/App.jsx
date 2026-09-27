@@ -16,12 +16,12 @@ export default function App() {
 
   // The name check-in is the entry screen on every fresh app load, even when
   // Firebase remembers an anonymous account from an earlier visit.
-  if (firebaseConfigured && !hasCheckedIn && !isLoginPage) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  }
-
   if (firebaseConfigured && loading && !isLoginPage) {
     return <main className="entry-loading"><Loading label="Checking your sign-in..." /></main>;
+  }
+
+  if (firebaseConfigured && !hasCheckedIn && !isLoginPage) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
   if (firebaseConfigured && !loading && !user && !isLoginPage) {
