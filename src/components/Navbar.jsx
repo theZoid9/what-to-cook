@@ -8,18 +8,16 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="floating-nav" aria-label="Primary navigation">
+      <nav className="floating-controls" aria-label="Primary navigation">
         <Link className="mini-brand" to="/" aria-label="What to Cook home">
           <ChefHat size={20} aria-hidden="true" />
         </Link>
-        <div className="floating-nav__actions">
-          <NavLink className="floating-action" to="/vote" aria-label="Vote on tonight's dinner">
+        <div className="floating-controls__right">
+          <NavLink className="floating-icon" to="/vote" aria-label="Vote on tonight's dinner" title="Vote">
             <Vote size={19} aria-hidden="true" />
-            <span>Vote</span>
           </NavLink>
-          <Link className="floating-action" to="/login" aria-label={user ? 'Use a different name' : 'Log in with your name'}>
+          <Link className="floating-icon" to="/login" aria-label={user ? 'Use a different name' : 'Sign in'} title={user?.displayName || 'Sign in'}>
             <UsersRound size={19} aria-hidden="true" />
-            <span>{user?.displayName || 'Sign in'}</span>
           </Link>
         </div>
       </nav>

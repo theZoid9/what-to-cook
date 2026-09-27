@@ -41,6 +41,7 @@ export function AuthProvider({ children }) {
         name: cleanedName,
         createdAt: serverTimestamp()
       });
+      setUser(credential.user);
     } catch (error) {
       throw new Error(friendlyFirebaseError(error));
     }

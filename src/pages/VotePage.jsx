@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import Atmosphere from '../components/Atmosphere';
 import Button from '../components/Button';
 import Loading from '../components/Loading';
+import SaveDinnerButton from '../components/SaveDinnerButton';
 import VoteCountdown from '../components/VoteCountdown';
 import { useAuth } from '../context/AuthContext';
 import { castDinnerVote, FAMILY_VOTE_TARGET, subscribeToCurrentDinnerVote } from '../services/dinnerVoteService';
@@ -69,6 +70,7 @@ export default function VotePage() {
               <div><ThumbsDown size={20} aria-hidden="true" /><strong>{summary.no}</strong><span>No</span></div>
             </div>
             <p className="vote-note">{getVoteOutcome(summary).message}</p>
+            {summary.total > 0 && <SaveDinnerButton poll={summary.poll} />}
           </section>
         ) : (
           <section className="vote-page__poll" aria-live="polite">

@@ -1309,6 +1309,16 @@ body {
 .vote-page__result { display: grid; width: 100%; min-height: min(33rem, 62svh); align-content: center; justify-items: center; padding: 1.25rem 0.5rem; text-align: center; }
 .vote-page__result h1 { max-width: 17ch; margin: 0; color: #171614; font-family: Georgia, "Times New Roman", serif; font-size: clamp(2.3rem, 8vw, 4.6rem); font-weight: 700; letter-spacing: -0.065em; line-height: 0.94; }
 .vote-page__result .button { margin-top: 1.25rem; color: #fffdf8; border-color: #181716; background: #181716; }
+.save-week { display: grid; justify-items: center; gap: 0.45rem; margin-top: 1.15rem; }
+.save-week__button { min-height: 2.9rem; border: 1px solid #171614; border-radius: 999px; color: #fffdf8; background: #171614; box-shadow: none; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 0.86rem; letter-spacing: 0; text-transform: none; }
+.save-week__button:disabled { opacity: 1; color: #172014; border-color: #a3be95; background: #d8eac8; }
+.save-week p { max-width: 27rem; margin: 0; color: #8b3022; font-size: 0.8rem; line-height: 1.4; text-align: center; }
+
+/* Choose a name before the picker opens; voting is available from the same step. */
+.auth-form__actions { display: grid; gap: 0.7rem; }
+.auth-form__actions .button--outline { color: #171614; border-color: #171614; background: #fffdf8; box-shadow: none; }
+.auth-form__actions .button--outline:hover { color: #fffdf8; background: #181716; }
+.entry-loading { display: grid; min-height: 100svh; place-items: center; color: #171614; background: #f4f1eb; }
 
 @media (min-width: 700px) {
   .arena--picker .vote-results { min-height: 80svh; }
@@ -1347,4 +1357,15 @@ body {
   .arena--picker .picker-grid--double { width: min(100%, 44rem); }
   .arena--picker .spin-stage--compact { min-height: 22rem; }
   .arena--picker .spin-stage--compact .spin-core { width: min(19vw, 13.5rem); min-height: min(19vw, 13.5rem); }
+}
+
+/* Navigation without a bar: each destination is a small independent control. */
+.floating-controls { position: fixed; z-index: 40; top: 1rem; right: 1rem; left: 1rem; display: flex; align-items: center; justify-content: space-between; pointer-events: none; }
+.floating-controls__right { display: flex; gap: 0.55rem; }
+.floating-controls .mini-brand, .floating-icon { display: grid; width: 2.9rem; height: 2.9rem; place-items: center; padding: 0; border: 1px solid #181716; border-radius: 50%; color: #171614; background: rgba(255, 253, 248, 0.95); box-shadow: 0 8px 22px rgba(37, 31, 24, 0.12); backdrop-filter: blur(10px); pointer-events: auto; transition: transform 150ms ease, color 150ms ease, background 150ms ease; }
+.floating-controls .mini-brand { color: #fffdf8; background: #181716; }
+.floating-icon:hover, .floating-icon.active { color: #fffdf8; background: #181716; transform: translateY(-3px); }
+
+@media (min-width: 700px) {
+  .floating-controls { top: 1.5rem; right: 1.5rem; left: 1.5rem; }
 }

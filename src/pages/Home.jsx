@@ -1,9 +1,10 @@
 import { ListPlus, Plus, RotateCw, Sparkles, ThumbsDown, ThumbsUp, Trash2, UsersRound, Vote, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import React, { useEffect, useMemo, useState } from 'react';
 import Button from '../components/Button';
 import Loading from '../components/Loading';
 import Atmosphere from '../components/Atmosphere';
+import SaveDinnerButton from '../components/SaveDinnerButton';
 import VoteCountdown from '../components/VoteCountdown';
 import { getMeals } from '../services/mealService';
 import { getCurrentWeekMeals, getMadeMealIds } from '../services/weeklyMealService';
@@ -70,7 +71,7 @@ function PickerStage({ type, meal, spinning, disabled, onSpin }) {
 }
 
 export default function Home() {
-  const { user, firebaseConfigured } = useAuth();
+  const { user, firebaseConfigured, loading: authLoading } = useAuth();
   const [meals, setMeals] = useState([]);
   const [madeMealIds, setMadeMealIds] = useState(new Set());
   const [customMeals, setCustomMeals] = useState(() => getStoredList(CUSTOM_DECK_KEY));
@@ -99,6 +100,7 @@ export default function Home() {
   }, [customMeals, hiddenMealIds]);
 
   useEffect(() => {
+    if (authLoading) return undefined;
     async function loadHomeData() {
       setLoading(true);
       setError('');
@@ -118,7 +120,7 @@ export default function Home() {
       }
     }
     loadHomeData();
-  }, [user]);
+  }, [user, authLoading]);
 
   useEffect(() => {
     if (!user || !firebaseConfigured || !poll?.id) return undefined;
@@ -251,6 +253,14 @@ export default function Home() {
     setDeckError('All starter meals are back in your picker.');
   }
 
+  if (authLoading) {
+    return <div className="entry-loading"><Loading label="Getting dinner ready..." /></div>;
+  }
+
+  if (firebaseConfigured && !user) {
+    return <Navigate to="/login" replace state={{ from: '/' }} />;
+  }
+
   return (
     <div className="arena arena--picker">
       <Atmosphere mode={spinningType ? 'spinning' : dinnerReady ? 'still' : 'idle'} />
@@ -258,7 +268,7 @@ export default function Home() {
         <header className="picker-heading">
           {pickerStep !== 'vote-result' && <p className="arena-mode">{firebaseConfigured ? 'Your dinner picker' : 'Dinner picker preview'}</p>}
           {pickerStep !== 'vote-result' && <h1>{pickerStep === 'vote' ? 'Family vote' : 'Pick tonight’s dinner.'}</h1>}
-          {pickerStep !== 'vote-result' && <p>{pickerStep === 'vote' ? 'You, Mom, and Bro each get one Yes or No vote.' : 'Spin a main and side. When both are ready, dinner appears below.'}</p>}
+          {pickerStep !== 'vote-result' && pickerStep !== 'vote' && <p>Spin a main and side. When both are ready, dinner appears below.</p>}
         </header>
 
         {loading ? <Loading label="Loading your dinner list..." /> : (
@@ -332,6 +342,7 @@ export default function Home() {
               <div><ThumbsDown size={20} aria-hidden="true" /><strong>{voteSummary.no}</strong><span>No</span></div>
             </div>
             <p className="vote-note">{getVoteOutcome(voteSummary).message}</p>
+            {voteSummary.total > 0 && <SaveDinnerButton poll={poll} />}
           </section>
         )}
 

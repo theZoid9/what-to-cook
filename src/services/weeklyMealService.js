@@ -1,4 +1,4 @@
-import { addDoc, collection, getDocs, orderBy, query, serverTimestamp, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDocs, orderBy, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { db, friendlyFirebaseError } from './firebase';
 import { getWeekKey } from '../utils/weekUtils';
 
@@ -37,6 +37,27 @@ export async function markMealCombinationMade(userId, selection) {
     };
     const result = await addDoc(collection(db, 'weeklyMeals'), payload);
     return result.id;
+  } catch (error) {
+    throw new Error(friendlyFirebaseError(error));
+  }
+}
+
+export async function saveVotedMealToWeek(userId, poll) {
+  try {
+    const recordId = `${userId}-${poll.id}`;
+    const payload = {
+      userId,
+      mainMealId: poll.main.id,
+      sideMealIds: [poll.side.id],
+      mainMeal: { id: poll.main.id, name: poll.main.name },
+      sideMeals: [{ id: poll.side.id, name: poll.side.name }],
+      sourceVoteId: poll.id,
+      weekKey: getWeekKey(),
+      dateMade: new Date().toISOString(),
+      createdAt: serverTimestamp()
+    };
+    await setDoc(doc(db, 'weeklyMeals', recordId), payload, { merge: true });
+    return recordId;
   } catch (error) {
     throw new Error(friendlyFirebaseError(error));
   }

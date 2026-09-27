@@ -15,18 +15,22 @@ export default function Login() {
   const from = location.state?.from || '/';
   const selection = location.state?.selection;
 
-  async function submit(event) {
-    event.preventDefault();
+  async function continueWithName(destination) {
     setError('');
     setSubmitting(true);
     try {
       await loginWithName(name);
-      navigate(from, { replace: true, state: selection ? { selection } : null });
+      navigate(destination, { replace: true, state: selection ? { selection } : null });
     } catch (loginError) {
       setError(loginError.message);
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function submit(event) {
+    event.preventDefault();
+    continueWithName(from);
   }
 
   return (
@@ -39,7 +43,10 @@ export default function Login() {
         {error && <div className="message message--error" role="alert">{error}</div>}
         <form onSubmit={submit} className="auth-form">
           <label>Your name<input type="text" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} maxLength="50" required autoFocus /></label>
-          <Button type="submit" disabled={submitting || !firebaseConfigured}>{submitting ? 'Saving...' : <>Continue <ArrowRight size={18} aria-hidden="true" /></>}</Button>
+          <div className="auth-form__actions">
+            <Button type="submit" disabled={submitting || !firebaseConfigured}>{submitting ? 'Saving...' : <>Start cooking <ArrowRight size={18} aria-hidden="true" /></>}</Button>
+            <Button type="button" variant="outline" onClick={() => continueWithName('/vote')} disabled={submitting || !firebaseConfigured}>View tonight’s vote</Button>
+          </div>
         </form>
         <p className="auth-card__switch">Using a new name creates a separate vote for that person.</p>
       </section>
