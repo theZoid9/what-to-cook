@@ -1,6 +1,6 @@
 import { ChefHat, ThumbsDown, ThumbsUp, UsersRound, Vote } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Atmosphere from '../components/Atmosphere';
 import Button from '../components/Button';
 import Loading from '../components/Loading';
@@ -23,23 +23,26 @@ function VoterList({ voters }) {
 
 export default function VotePage() {
   const { user, firebaseConfigured, sessionRole } = useAuth();
-  const [summary, setSummary] = useState(EMPTY_VOTE_SUMMARY);
-  const [loading, setLoading] = useState(true);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const startedPoll = location.state?.startedPoll || null;
+  const [summary, setSummary] = useState(() => startedPoll ? { ...EMPTY_VOTE_SUMMARY, poll: startedPoll } : EMPTY_VOTE_SUMMARY);
+  const [loading, setLoading] = useState(!startedPoll);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [voteEnded, setVoteEnded] = useState(false);
   const [comment, setComment] = useState('');
   const mealApproved = summary.yes > summary.no;
   const isCook = sessionRole === 'cook';
-  const canCancelPoll = sessionRole === 'cook' && summary.poll?.createdBy === user?.uid;
+  const canCancelPoll = sessionRole === 'cook' && summary.poll?.ownerId === user?.uid;
 
   useEffect(() => {
     // A person changing at the entry screen must never briefly inherit the
     // preceding person's poll, vote, or finished-result view.
-    setSummary(EMPTY_VOTE_SUMMARY);
+    setSummary(startedPoll ? { ...EMPTY_VOTE_SUMMARY, poll: startedPoll } : EMPTY_VOTE_SUMMARY);
     setVoteEnded(false);
     setError('');
-    setLoading(true);
+    setLoading(!startedPoll);
 
     if (!user || !firebaseConfigured) {
       setLoading(false);
@@ -57,7 +60,7 @@ export default function VotePage() {
         setLoading(false);
       }
     );
-  }, [user, firebaseConfigured]);
+  }, [user, firebaseConfigured, startedPoll]);
 
   // The cook is on this shared page too. Keep the vote alive while they are
   // here, so voters only return to the waiting state when the cook truly leaves.
@@ -90,6 +93,7 @@ export default function VotePage() {
     setError('');
     try {
       await cancelCurrentDinnerVote(user.uid, summary.poll.id);
+      navigate('/', { replace: true });
     } catch (cancelError) {
       setError(cancelError.message || 'We could not cancel tonight’s vote.');
     } finally {

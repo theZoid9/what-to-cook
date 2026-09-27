@@ -126,7 +126,7 @@ export async function castDinnerVote(pollId, userId, choice, voterName, comment 
   }
 }
 
-export function subscribeToDinnerVote(pollId, userId, onChange, onError) {
+export function subscribeToDinnerVote(pollId, userId, onChange, onError, ownerId = '') {
   let poll = null;
   let votes = [];
 
@@ -139,7 +139,7 @@ export function subscribeToDinnerVote(pollId, userId, onChange, onError) {
     const no = votes.filter((vote) => vote.choice === 'no').length;
     const mine = votes.find((vote) => vote.userId === userId)?.choice || '';
     onChange({
-      poll,
+      poll: poll ? { ...poll, ownerId } : null,
       yes,
       no,
       total: yes + no,
@@ -251,7 +251,7 @@ export function subscribeToCurrentDinnerVote(userId, onChange, onError) {
       stopActivePoll();
       activePollId = nextPollId || '';
       if (!scheduleOwnerTimeout(currentData.ownerLastActiveAt, currentEndsAt)) return;
-      stopPoll = subscribeToDinnerVote(activePollId, userId, onChange, onError);
+      stopPoll = subscribeToDinnerVote(activePollId, userId, onChange, onError, currentData.ownerId || '');
     },
     onError
   );

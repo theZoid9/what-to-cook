@@ -222,11 +222,11 @@ export default function Home() {
     setError('');
     try {
       const { poll: currentPoll, commit } = startTonightVote(user.uid, selection);
-      setPoll(currentPoll);
+      setPoll({ ...currentPoll, ownerId: user.uid });
       setMainChoice(currentPoll.main);
       setSideChoice(currentPoll.side);
       await commit;
-      navigate('/vote');
+      navigate('/vote', { state: { startedPoll: { ...currentPoll, ownerId: user.uid } } });
     } catch (voteError) {
       setError(voteError.message || 'We could not open tonight’s vote.');
       setPoll(null);
