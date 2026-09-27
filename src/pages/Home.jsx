@@ -54,17 +54,17 @@ function createCustomMeal(name, type) {
   };
 }
 
-function PickerStage({ type, mainChoice, spinning, disabled, onSpin, onBack }) {
+function PickerStage({ type, meal, spinning, disabled, onSpin }) {
   const isMain = type === 'main';
 
   return (
-    <section className={'spin-stage spin-stage--' + type + (spinning ? ' spin-stage--active' : '')} aria-label={isMain ? 'Choose a main dish' : 'Choose a side dish'}>
-      {!isMain && <p className="selected-main-name">{mainChoice?.name}</p>}
+    <section className={'spin-stage spin-stage--compact spin-stage--' + type + (spinning ? ' spin-stage--active' : '')} aria-label={isMain ? 'Choose a main dish' : 'Choose a side dish'}>
+      <p className="compact-spin-label">{isMain ? 'Main' : 'Side'}</p>
       <button className="spin-core" type="button" onClick={onSpin} disabled={disabled} aria-label={spinning ? 'Choosing a meal' : `Spin for a ${isMain ? 'main' : 'side'} dish`}>
         <strong>{spinning ? 'Mixing…' : 'SPIN'}</strong>
         <RotateCw size={30} className={spinning ? 'is-spinning' : ''} aria-hidden="true" />
       </button>
-      {!isMain && <button className="picker-back" type="button" onClick={onBack}>Pick a different main</button>}
+      <p className="compact-spin-choice">{meal?.name || 'Not picked yet'}</p>
     </section>
   );
 }
@@ -77,7 +77,7 @@ export default function Home() {
   const [hiddenMealIds, setHiddenMealIds] = useState(() => getStoredList(HIDDEN_DECK_KEY));
   const [mainChoice, setMainChoice] = useState(null);
   const [sideChoice, setSideChoice] = useState(null);
-  const [pickerStep, setPickerStep] = useState('main');
+  const [pickerStep, setPickerStep] = useState('pick');
   const [spinningType, setSpinningType] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -150,7 +150,7 @@ export default function Home() {
   const deckMains = useMemo(() => deckMeals.filter((meal) => meal.type === 'main'), [deckMeals]);
   const deckSides = useMemo(() => deckMeals.filter((meal) => meal.type === 'side'), [deckMeals]);
   const visibleDeckMeals = deckTab === 'main' ? deckMains : deckSides;
-  const dinnerReady = ['result', 'vote', 'vote-result'].includes(pickerStep) && mainChoice && sideChoice;
+  const dinnerReady = Boolean(mainChoice && sideChoice);
 
   function spin(type) {
     const candidates = type === 'main' ? mains : sides;
@@ -171,29 +171,13 @@ export default function Home() {
       const picked = choose(candidates);
       if (type === 'main') {
         setMainChoice(picked);
-        setSideChoice(null);
-        setPickerStep('side');
+        setPickerStep('pick');
       } else {
         setSideChoice(picked);
-        setPickerStep('result');
+        setPickerStep('pick');
       }
       setSpinningType('');
     }, 950);
-  }
-
-  function pickAnotherMain() {
-    setMainChoice(null);
-    setSideChoice(null);
-    setPickerStep('main');
-  }
-
-  function startAgain() {
-    setMainChoice(null);
-    setSideChoice(null);
-    setPickerStep('main');
-    setPoll(null);
-    setVoteSummary({ yes: 0, no: 0, total: 0, mine: '', voters: [] });
-    setError('');
   }
 
   async function openVoting() {
@@ -272,39 +256,35 @@ export default function Home() {
       <Atmosphere mode={spinningType ? 'spinning' : dinnerReady ? 'still' : 'idle'} />
       <main className="picker-shell">
         <header className="picker-heading">
-          {pickerStep !== 'side' && pickerStep !== 'vote-result' && <p className="arena-mode">{firebaseConfigured ? 'Your dinner picker' : 'Dinner picker preview'}</p>}
-          {pickerStep !== 'side' && pickerStep !== 'vote-result' && <h1>{pickerStep === 'vote' ? 'Family vote' : dinnerReady ? 'Dinner is decided.' : 'Build tonight’s plate.'}</h1>}
-          {pickerStep !== 'side' && pickerStep !== 'vote-result' && <p>{pickerStep === 'vote' ? 'You, Mom, and Bro each get one Yes or No vote.' : dinnerReady ? 'One main, one side, and no more wondering what to cook.' : 'One spin for the main, then one spin for the side.'}</p>}
+          {pickerStep !== 'vote-result' && <p className="arena-mode">{firebaseConfigured ? 'Your dinner picker' : 'Dinner picker preview'}</p>}
+          {pickerStep !== 'vote-result' && <h1>{pickerStep === 'vote' ? 'Family vote' : 'Pick tonight’s dinner.'}</h1>}
+          {pickerStep !== 'vote-result' && <p>{pickerStep === 'vote' ? 'You, Mom, and Bro each get one Yes or No vote.' : 'Spin a main and side. When both are ready, dinner appears below.'}</p>}
         </header>
 
         {loading ? <Loading label="Loading your dinner list..." /> : (
           <>
-            {pickerStep === 'main' && (
-              <div className="picker-grid picker-grid--single">
+            {pickerStep === 'pick' && (
+              <div className="picker-grid picker-grid--double">
                 <PickerStage
                   type="main"
+                  meal={mainChoice}
                   spinning={spinningType === 'main'}
                   disabled={Boolean(spinningType)}
                   onSpin={() => spin('main')}
                 />
-              </div>
-            )}
-            {pickerStep === 'side' && (
-              <div className="picker-grid picker-grid--single">
                 <PickerStage
                   type="side"
-                  mainChoice={mainChoice}
+                  meal={sideChoice}
                   spinning={spinningType === 'side'}
                   disabled={Boolean(spinningType)}
                   onSpin={() => spin('side')}
-                  onBack={pickAnotherMain}
                 />
               </div>
             )}
           </>
         )}
 
-        {pickerStep === 'result' && dinnerReady && (
+        {pickerStep === 'pick' && dinnerReady && (
           <section className="dinner-summary" aria-live="polite">
             <p><Sparkles size={16} aria-hidden="true" /> Tonight’s dinner</p>
             <h2>{mainChoice.name} <span>with</span> {sideChoice.name}</h2>
@@ -318,9 +298,6 @@ export default function Home() {
               ) : (
                 <Link className="button button--outline vote-open" to="/login"><Vote size={18} aria-hidden="true" /> Log in to vote</Link>
               )}
-              <Button variant="outline" onClick={startAgain}>
-                Spin a new dinner
-              </Button>
             </div>
           </section>
         )}
@@ -341,7 +318,7 @@ export default function Home() {
             </div>
             <p className="vote-progress"><strong>{voteSummary.total}</strong> of {FAMILY_VOTE_TARGET} family votes in</p>
             {voteSummary.voters.length > 0 && <p className="vote-voters">Voted: {voteSummary.voters.map((voter) => voter.name).join(' · ')}</p>}
-            <button className="vote-back" type="button" onClick={() => setPickerStep('result')}>Back to the meal</button>
+            <button className="vote-back" type="button" onClick={() => setPickerStep('pick')}>Back to the meal</button>
           </section>
         )}
 
@@ -355,9 +332,6 @@ export default function Home() {
               <div><ThumbsDown size={20} aria-hidden="true" /><strong>{voteSummary.no}</strong><span>No</span></div>
             </div>
             <p className="vote-note">{getVoteOutcome(voteSummary).message}</p>
-            <div className="vote-results__actions">
-              <Button variant="outline" onClick={startAgain}>Spin a new dinner</Button>
-            </div>
           </section>
         )}
 

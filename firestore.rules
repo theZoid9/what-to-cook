@@ -47,8 +47,7 @@ service cloud.firestore {
       allow create: if request.auth != null
         && request.resource.data.updatedBy == request.auth.uid;
       allow update: if request.auth != null
-        && request.resource.data.updatedBy == request.auth.uid
-        && request.time >= resource.data.endsAt;
+        && request.resource.data.updatedBy == request.auth.uid;
       allow delete: if false;
     }
   }

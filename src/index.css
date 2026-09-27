@@ -1328,3 +1328,23 @@ body {
 @media (min-width: 700px) {
   .weekly-page { padding: 9rem max(2rem, calc((100vw - 68rem) / 2)) 5rem; }
 }
+
+/* One compact picker screen: main and side live together. */
+.arena--picker .picker-grid--double { display: grid; width: min(100%, 38rem); grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: center; gap: clamp(1rem, 5vw, 3rem); margin: 0 auto; }
+.arena--picker .spin-stage--compact { min-height: min(20rem, 39svh); gap: 0.75rem; }
+.compact-spin-label { margin: 0; color: #252320; font-size: 0.76rem; font-weight: 850; letter-spacing: 0.12em; text-transform: uppercase; }
+.compact-spin-choice { max-width: 13ch; min-height: 2.5em; margin: 0; color: #171614; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1rem, 4.4vw, 1.35rem); font-weight: 700; line-height: 1.08; text-align: center; overflow-wrap: anywhere; }
+.arena--picker .spin-stage--compact .spin-core { width: min(37vw, 12.5rem); min-height: min(37vw, 12.5rem); }
+.spin-stage--compact .spin-core strong { font-size: clamp(1.75rem, 8vw, 2.7rem); }
+.spin-stage--compact .spin-core > svg { width: 24px; height: 24px; }
+.picker-grid--double { order: 2; }
+.picker-grid--double + .dinner-summary { order: 1; min-height: 0; margin: -0.2rem auto 0; padding: 0.35rem 0.5rem 1.2rem; }
+.picker-grid--double + .dinner-summary h2 { margin-bottom: 0.8rem; }
+.vote-progress, .vote-progress strong, .vote-back { color: #171614; }
+.vote-back:hover { color: #171614; }
+
+@media (min-width: 700px) {
+  .arena--picker .picker-grid--double { width: min(100%, 44rem); }
+  .arena--picker .spin-stage--compact { min-height: 22rem; }
+  .arena--picker .spin-stage--compact .spin-core { width: min(19vw, 13.5rem); min-height: min(19vw, 13.5rem); }
+}

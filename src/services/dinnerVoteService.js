@@ -2,7 +2,7 @@ import { collection, doc, onSnapshot, runTransaction, serverTimestamp, setDoc, T
 import { db, friendlyFirebaseError } from './firebase';
 
 export const FAMILY_VOTE_TARGET = 3;
-export const VOTE_DURATION_SECONDS = 90;
+export const VOTE_DURATION_SECONDS = 30;
 
 function getTodayKey() {
   const now = new Date();
@@ -37,15 +37,7 @@ function normalisePoll(id, data) {
 export async function getOrCreateTonightVote(userId, selection) {
   const currentVoteRef = doc(db, 'dinnerVoteState', 'current');
   const result = await runTransaction(db, async (transaction) => {
-    const currentVote = await transaction.get(currentVoteRef);
-    const currentData = currentVote.exists() ? currentVote.data() : null;
-    const currentEndsAt = toMillis(currentData?.endsAt);
-
-    if (currentData?.pollId && currentEndsAt && currentEndsAt > Date.now()) {
-      const currentPoll = await transaction.get(doc(db, 'dinnerVotes', currentData.pollId));
-      if (currentPoll.exists()) return normalisePoll(currentPoll.id, currentPoll.data());
-    }
-
+    // Starting a vote always begins a new family round from the meals on screen.
     const pollId = `${getTodayKey()}-${Date.now()}`;
     const endsAt = Timestamp.fromMillis(Date.now() + VOTE_DURATION_SECONDS * 1000);
     const pollRef = doc(db, 'dinnerVotes', pollId);

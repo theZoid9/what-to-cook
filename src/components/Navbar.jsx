@@ -19,7 +19,7 @@ export default function Navbar() {
           </NavLink>
           <Link className="floating-action" to="/login" aria-label={user ? 'Use a different name' : 'Log in with your name'}>
             <UsersRound size={19} aria-hidden="true" />
-            <span>{user?.displayName || 'Who’s cooking?'}</span>
+            <span>{user?.displayName || 'Sign in'}</span>
           </Link>
         </div>
       </nav>

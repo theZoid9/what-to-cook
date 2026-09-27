@@ -69,7 +69,6 @@ export default function VotePage() {
               <div><ThumbsDown size={20} aria-hidden="true" /><strong>{summary.no}</strong><span>No</span></div>
             </div>
             <p className="vote-note">{getVoteOutcome(summary).message}</p>
-            <Link className="button button--primary" to="/">Spin a new dinner</Link>
           </section>
         ) : (
           <section className="vote-page__poll" aria-live="polite">

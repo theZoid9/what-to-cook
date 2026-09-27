@@ -35,7 +35,6 @@ export default function Login() {
         <div className="auth-card__mark"><ChefHat size={25} aria-hidden="true" /></div>
         <p className="eyebrow">Dinner together</p>
         <h1>Who is cooking?</h1>
-        <p>Just enter your name. No email or password needed.</p>
         {!firebaseConfigured && <div className="message message--error" role="alert">Firebase has not been configured in this copy of the app yet.</div>}
         {error && <div className="message message--error" role="alert">{error}</div>}
         <form onSubmit={submit} className="auth-form">
