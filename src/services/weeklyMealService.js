@@ -1,4 +1,4 @@
-import { addDoc, collection, doc, getDocs, orderBy, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { db, friendlyFirebaseError } from './firebase';
 import { getWeekKey } from '../utils/weekUtils';
 
@@ -37,6 +37,20 @@ export async function markMealCombinationMade(userId, selection) {
     };
     const result = await addDoc(collection(db, 'weeklyMeals'), payload);
     return result.id;
+  } catch (error) {
+    throw new Error(friendlyFirebaseError(error));
+  }
+}
+
+export async function clearCurrentWeekMeals(userId) {
+  try {
+    const weeklyQuery = query(
+      collection(db, 'weeklyMeals'),
+      where('userId', '==', userId),
+      where('weekKey', '==', getWeekKey())
+    );
+    const snapshot = await getDocs(weeklyQuery);
+    await Promise.all(snapshot.docs.map((record) => deleteDoc(record.ref)));
   } catch (error) {
     throw new Error(friendlyFirebaseError(error));
   }

@@ -3,6 +3,7 @@ import { db, friendlyFirebaseError } from './firebase';
 
 export const FAMILY_VOTE_TARGET = 3;
 export const VOTE_DURATION_SECONDS = 30;
+export const EMPTY_VOTE_SUMMARY = Object.freeze({ poll: null, yes: 0, no: 0, total: 0, mine: '', voters: [] });
 
 function getTodayKey() {
   const now = new Date();
@@ -22,6 +23,10 @@ function toVoteMeal(meal) {
 
 function toMillis(value) {
   return typeof value?.toMillis === 'function' ? value.toMillis() : null;
+}
+
+function isStillOpen(endsAt) {
+  return typeof endsAt === 'number' && endsAt > Date.now();
 }
 
 function normalisePoll(id, data) {
@@ -82,7 +87,7 @@ export function subscribeToDinnerVote(pollId, userId, onChange, onError) {
 
   function emit() {
     if (!poll) {
-      onChange({ poll: null, yes: 0, no: 0, total: 0, mine: '', voters: [] });
+      onChange(EMPTY_VOTE_SUMMARY);
       return;
     }
     const yes = votes.filter((vote) => vote.choice === 'yes').length;
@@ -129,15 +134,24 @@ export function subscribeToCurrentDinnerVote(userId, onChange, onError) {
   const stopCurrent = onSnapshot(
     doc(db, 'dinnerVoteState', 'current'),
     (snapshot) => {
-      const nextPollId = snapshot.exists() ? snapshot.data().pollId : '';
+      const currentData = snapshot.exists() ? snapshot.data() : null;
+      const nextPollId = currentData?.pollId || '';
+      const currentEndsAt = toMillis(currentData?.endsAt);
+
+      // The pointer is kept so the cook can retain their completed result, but
+      // it is no longer an active vote for anyone opening the page afterward.
+      if (!nextPollId || !isStillOpen(currentEndsAt)) {
+        stopPoll();
+        activePollId = '';
+        receivedCurrent = true;
+        onChange(EMPTY_VOTE_SUMMARY);
+        return;
+      }
+
       if (receivedCurrent && nextPollId === activePollId) return;
       receivedCurrent = true;
       stopPoll();
       activePollId = nextPollId || '';
-      if (!activePollId) {
-        onChange({ poll: null, yes: 0, no: 0, total: 0, mine: '', voters: [] });
-        return;
-      }
       stopPoll = subscribeToDinnerVote(activePollId, userId, onChange, onError);
     },
     onError

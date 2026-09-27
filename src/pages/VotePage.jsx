@@ -7,18 +7,25 @@ import Loading from '../components/Loading';
 import SaveDinnerButton from '../components/SaveDinnerButton';
 import VoteCountdown from '../components/VoteCountdown';
 import { useAuth } from '../context/AuthContext';
-import { castDinnerVote, FAMILY_VOTE_TARGET, subscribeToCurrentDinnerVote } from '../services/dinnerVoteService';
+import { castDinnerVote, EMPTY_VOTE_SUMMARY, FAMILY_VOTE_TARGET, subscribeToCurrentDinnerVote } from '../services/dinnerVoteService';
 import { getVoteOutcome } from '../utils/voteUtils';
 
 export default function VotePage() {
   const { user, firebaseConfigured } = useAuth();
-  const [summary, setSummary] = useState({ poll: null, yes: 0, no: 0, total: 0, mine: '', voters: [] });
+  const [summary, setSummary] = useState(EMPTY_VOTE_SUMMARY);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [voteEnded, setVoteEnded] = useState(false);
 
   useEffect(() => {
+    // A person changing at the entry screen must never briefly inherit the
+    // preceding person's poll, vote, or finished-result view.
+    setSummary(EMPTY_VOTE_SUMMARY);
+    setVoteEnded(false);
+    setError('');
+    setLoading(true);
+
     if (!user || !firebaseConfigured) {
       setLoading(false);
       return undefined;

@@ -2,11 +2,11 @@ import { ListPlus, Plus, RotateCw, Sparkles, ThumbsDown, ThumbsUp, Trash2, Users
 import { Link, Navigate } from 'react-router-dom';
 import React, { useEffect, useMemo, useState } from 'react';
 import Button from '../components/Button';
-import Loading from '../components/Loading';
 import Atmosphere from '../components/Atmosphere';
 import SaveDinnerButton from '../components/SaveDinnerButton';
 import VoteCountdown from '../components/VoteCountdown';
 import { getMeals } from '../services/mealService';
+import { sampleMeals } from '../data/sampleMeals';
 import { getCurrentWeekMeals, getMadeMealIds } from '../services/weeklyMealService';
 import { castDinnerVote, FAMILY_VOTE_TARGET, getOrCreateTonightVote, subscribeToDinnerVote, VOTE_DURATION_SECONDS } from '../services/dinnerVoteService';
 import { useAuth } from '../context/AuthContext';
@@ -72,7 +72,9 @@ function PickerStage({ type, meal, spinning, disabled, onSpin }) {
 
 export default function Home() {
   const { user, firebaseConfigured, loading: authLoading } = useAuth();
-  const [meals, setMeals] = useState([]);
+  // Starter meals are bundled with the app, so the spinner can appear as soon
+  // as the cook checks in. Firebase then quietly adds any remote meals/history.
+  const [meals, setMeals] = useState(sampleMeals);
   const [madeMealIds, setMadeMealIds] = useState(new Set());
   const [customMeals, setCustomMeals] = useState(() => getStoredList(CUSTOM_DECK_KEY));
   const [hiddenMealIds, setHiddenMealIds] = useState(() => getStoredList(HIDDEN_DECK_KEY));
@@ -80,7 +82,6 @@ export default function Home() {
   const [sideChoice, setSideChoice] = useState(null);
   const [pickerStep, setPickerStep] = useState('pick');
   const [spinningType, setSpinningType] = useState('');
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deckOpen, setDeckOpen] = useState(false);
   const [draftName, setDraftName] = useState('');
@@ -102,7 +103,6 @@ export default function Home() {
   useEffect(() => {
     if (authLoading) return undefined;
     async function loadHomeData() {
-      setLoading(true);
       setError('');
       try {
         const loadedMeals = await getMeals();
@@ -115,8 +115,6 @@ export default function Home() {
         }
       } catch (loadError) {
         setError(loadError.message || 'We could not load your dinner list right now.');
-      } finally {
-        setLoading(false);
       }
     }
     loadHomeData();
@@ -253,10 +251,6 @@ export default function Home() {
     setDeckError('All starter meals are back in your picker.');
   }
 
-  if (authLoading) {
-    return <div className="entry-loading"><Loading label="Getting dinner ready..." /></div>;
-  }
-
   if (firebaseConfigured && !user) {
     return <Navigate to="/login" replace state={{ from: '/' }} />;
   }
@@ -271,27 +265,23 @@ export default function Home() {
           {pickerStep !== 'vote-result' && pickerStep !== 'vote' && <p>Spin a main and side. When both are ready, dinner appears below.</p>}
         </header>
 
-        {loading ? <Loading label="Loading your dinner list..." /> : (
-          <>
-            {pickerStep === 'pick' && (
-              <div className="picker-grid picker-grid--double">
-                <PickerStage
-                  type="main"
-                  meal={mainChoice}
-                  spinning={spinningType === 'main'}
-                  disabled={Boolean(spinningType)}
-                  onSpin={() => spin('main')}
-                />
-                <PickerStage
-                  type="side"
-                  meal={sideChoice}
-                  spinning={spinningType === 'side'}
-                  disabled={Boolean(spinningType)}
-                  onSpin={() => spin('side')}
-                />
-              </div>
-            )}
-          </>
+        {pickerStep === 'pick' && (
+          <div className="picker-grid picker-grid--double">
+            <PickerStage
+              type="main"
+              meal={mainChoice}
+              spinning={spinningType === 'main'}
+              disabled={Boolean(spinningType)}
+              onSpin={() => spin('main')}
+            />
+            <PickerStage
+              type="side"
+              meal={sideChoice}
+              spinning={spinningType === 'side'}
+              disabled={Boolean(spinningType)}
+              onSpin={() => spin('side')}
+            />
+          </div>
         )}
 
         {pickerStep === 'pick' && dinnerReady && (
