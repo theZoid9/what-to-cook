@@ -10,9 +10,15 @@ import Loading from './components/Loading';
 import { useAuth } from './context/AuthContext';
 
 export default function App() {
-  const { user, loading, firebaseConfigured } = useAuth();
+  const { user, loading, firebaseConfigured, hasCheckedIn } = useAuth();
   const location = useLocation();
   const isLoginPage = location.pathname === '/login';
+
+  // The name check-in is the entry screen on every fresh app load, even when
+  // Firebase remembers an anonymous account from an earlier visit.
+  if (firebaseConfigured && !hasCheckedIn && !isLoginPage) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
 
   if (firebaseConfigured && loading && !isLoginPage) {
     return <main className="entry-loading"><Loading label="Checking your sign-in..." /></main>;
@@ -24,7 +30,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      {!firebaseConfigured || user ? <Navbar /> : null}
+      {!isLoginPage && (!firebaseConfigured || hasCheckedIn) ? <Navbar /> : null}
       <main className="page-content">
         <Routes>
           <Route path="/" element={<Home />} />

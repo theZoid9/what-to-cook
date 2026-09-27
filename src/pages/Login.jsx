@@ -1,26 +1,23 @@
-import { ArrowRight, ChefHat } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { ChefHat, Vote } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import React, { useState } from 'react';
 import Button from '../components/Button';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
-  const { loginWithName, firebaseConfigured } = useAuth();
+  const { loginWithName, beginSession, firebaseConfigured, loading } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const from = location.state?.from || '/';
-  const selection = location.state?.selection;
-
-  async function continueWithName(destination) {
+  async function continueWithName(role) {
     setError('');
     setSubmitting(true);
     try {
       await loginWithName(name);
-      navigate(destination, { replace: true, state: selection ? { selection } : null });
+      beginSession(role);
+      navigate(role === 'cook' ? '/' : '/vote', { replace: true });
     } catch (loginError) {
       setError(loginError.message);
     } finally {
@@ -30,7 +27,7 @@ export default function Login() {
 
   function submit(event) {
     event.preventDefault();
-    continueWithName(from);
+    continueWithName('cook');
   }
 
   return (
@@ -38,17 +35,17 @@ export default function Login() {
       <section className="auth-card">
         <div className="auth-card__mark"><ChefHat size={25} aria-hidden="true" /></div>
         <p className="eyebrow">Dinner together</p>
-        <h1>Who is cooking?</h1>
+        <h1>Who’s here?</h1>
         {!firebaseConfigured && <div className="message message--error" role="alert">Firebase has not been configured in this copy of the app yet.</div>}
         {error && <div className="message message--error" role="alert">{error}</div>}
         <form onSubmit={submit} className="auth-form">
           <label>Your name<input type="text" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} maxLength="50" required autoFocus /></label>
           <div className="auth-form__actions">
-            <Button type="submit" disabled={submitting || !firebaseConfigured}>{submitting ? 'Saving...' : <>Start cooking <ArrowRight size={18} aria-hidden="true" /></>}</Button>
-            <Button type="button" variant="outline" onClick={() => continueWithName('/vote')} disabled={submitting || !firebaseConfigured}>View tonight’s vote</Button>
+            <Button type="submit" disabled={submitting || loading || !firebaseConfigured}>{submitting ? 'Entering...' : <>I’m cooking tonight <ChefHat size={18} aria-hidden="true" /></>}</Button>
+            <Button type="button" variant="outline" onClick={() => continueWithName('voter')} disabled={submitting || loading || !firebaseConfigured}>I’m here to vote <Vote size={18} aria-hidden="true" /></Button>
           </div>
         </form>
-        <p className="auth-card__switch">Using a new name creates a separate vote for that person.</p>
+        <p className="auth-card__switch">Choose what you’re doing tonight.</p>
       </section>
     </div>
   );

@@ -57,9 +57,9 @@ export default function VotePage() {
         {!firebaseConfigured ? (
           <section className="vote-page__empty"><ChefHat size={32} aria-hidden="true" /><h1>Voting is not set up yet.</h1><p>Add your Firebase settings, then return here.</p></section>
         ) : !user ? (
-          <section className="vote-page__empty"><Vote size={32} aria-hidden="true" /><h1>Log in to vote.</h1><p>Every account gets one Yes or No vote and can change it at any time.</p><div className="vote-page__empty-actions"><Link className="button button--primary" to="/login" state={{ from: '/vote' }}>Log in to vote</Link><Link className="button button--outline" to="/">Cook to spin</Link></div></section>
+          <section className="vote-page__empty"><Vote size={32} aria-hidden="true" /><h1>Log in to vote.</h1><p>Every account gets one Yes or No vote and can change it at any time.</p><div className="vote-page__empty-actions"><Link className="button button--primary" to="/login">Sign in</Link></div></section>
         ) : loading ? <Loading label="Loading tonight’s vote..." /> : !summary.poll ? (
-          <section className="vote-page__empty vote-page__pending"><div className="pending-spinner" aria-hidden="true" /><UsersRound size={32} aria-hidden="true" /><h1>Waiting for tonight’s meal.</h1><p>As soon as someone spins a main and a side, the shared vote will appear here.</p><div className="vote-page__empty-actions"><Link className="button button--primary" to="/">Cook to spin</Link><Link className="button button--outline" to="/login">Log in to vote</Link></div></section>
+          <section className="vote-page__empty vote-page__pending"><div className="pending-spinner" aria-hidden="true" /><UsersRound size={32} aria-hidden="true" /><h1>Waiting for tonight’s meal.</h1><p>This page updates automatically when the cook starts a vote.</p></section>
         ) : voteEnded ? (
           <section className="vote-page__result" aria-live="polite">
             <p className="vote-screen__label"><Vote size={16} aria-hidden="true" /> Family vote complete</p>
